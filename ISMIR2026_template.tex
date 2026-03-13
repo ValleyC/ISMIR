@@ -1,0 +1,170 @@
+% -----------------------------------------------
+% ISMIR 2026 submission draft
+% -----------------------------------------------
+
+\documentclass{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[submission]{ismir}
+\usepackage{amsmath,cite,url}
+\usepackage{graphicx}
+\usepackage{color}
+
+\title{CODA: \underline{C}ascaded \underline{O}nline \underline{D}etection-Free 
+\underline{A}lignment\\with Jump Recovery for Real-Time Score Following}
+
+
+\oneauthor
+  {Anonymous Authors}
+  {Anonymous Affiliations\\\texttt{anonymous@ismir.net}}
+
+% Camera-ready author block (kept here as record; leave commented for submission):
+% \multauthor
+%   {Yining Yang$^1$ \hspace{0.8cm} Ruogu Chen$^2$ \hspace{0.8cm} Kate Helsen$^1$ \hspace{0.8cm} Jie Han$^2$}
+%   {$^1$ Don Wright Faculty of Music, Western University, Canada\\
+%    $^2$ Department of Electrical and Computer Engineering, University of Alberta, Canada\\
+%    {\tt\small yyan524@uwo.ca, ruogu@ualberta.ca, kate.helsen@uwo.ca, jhan8@ualberta.ca}}
+
+\def\authorname{Anonymous Authors}
+% Camera-ready value:
+% \def\authorname{Y. Yang, R. Chen, K. Helsen, and J. Han}
+
+\sloppy
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Real-time score following from sheet images remains challenging because the model must process streaming audio while resolving highly repetitive visual patterns under strict latency constraints. However, on the score page, the locations of all systems, bars, and notes are all known and fixed. In addition, these notations follow a universal hierarchy directly: the active note must be within the active bar, and the active bar must be within the active system. However, existing image-based score-following methods fail to exploit this cascaded characteristic. They predict the positions of the active system, bar, and note using separate output layers that do not constrain one another. This often leads to difficulties in keeping structural consistency and error recovery. Additionally, most existing methods struggle to recover from score discontinuities, such as repeats, D.C., coda jumps, or even small repeats after a performer's mistakes. Therefore, we propose CODA, to the best of our knowledge, the first real-time image-based score following framework that addresses both gaps. CODA follows the score hierarchy directly: it first selects the active system, then the active bar within that system, and finally regresses a continuous note position within the selected bar, thereby enforcing geometric consistency. The architecture combines a shared visual page encoder with a causal Mamba state-space audio encoder. The candidate systems, bars, and notes are scored via audio-conditioned modulation and cross-attention, and decoded with beam search over learned transition penalties. Both training and evaluation are based on the Multimodal Sheet Music Dataset (MSMD) piano benchmarks. CODA achieves strong tracking and discontinuity-recovery accuracy under real-time audio throughput.
+\end{abstract}
+
+\section{Introduction}\label{sec:introduction}
+
+Real-time score following aligns a live performance to a reference score as the music unfolds. It is a core component for automatic accompaniment, synchronized score display, and other interactive music systems \cite{schwarz2015score,dannenberg2006music}. Classical approaches based on online dynamic time warping and probabilistic state models provide causal decoding with explicit temporal structure \cite{dixon2005line,cont2009coupled,nakamura2015real}, but they typically require a symbolic score such as MIDI or MusicXML. In many practical settings, however, only sheet images are available.
+
+Image-based score following removes the symbolic requirement but introduces a harder perception problem: the model must locate its position on a dense score page from audio alone, in real time. Early work treated this as local position classification \cite{dorfer2016towards}. Later methods added reinforcement learning \cite{dorfer2018learning,henkel2019score}, full-page segmentation \cite{henkel2020learning}, and multi-scale detection \cite{henkel2021real}. These methods made important progress, but most predict systems, bars, and notes through separate output layers that do not constrain one another. Nothing in the architecture enforces that a predicted note must lie inside the predicted bar or system, so structural consistency depends entirely on what the model learns implicitly.
+
+This gap has practical consequences. In repetitive piano music, neighboring bars may differ by only a few notes at page resolution, and without explicit structural constraints, small per-frame errors accumulate into system- or page-level drift. The problem is compounded by a gap between training and deployment: during training, downstream stages typically receive the correct position as input, but at deployment the model must act on its own predictions, which may be wrong. Existing image-based methods also lack an explicit recovery mechanism for score jumps---repeats, D.C., or coda skips---even though such discontinuities are common in practice and have long been addressed in symbolic score following \cite{nakamura2015real,morsi2022bottlenecks,park2025matchmaker}.
+
+This paper addresses these issues by reformulating the task. On a fixed score page, the candidate systems and bars are known after a one-time layout analysis step. The online problem is therefore better viewed as structured selection among known candidates than as repeated detection from scratch. The method follows the score hierarchy directly: it first selects the active system, then the active bar within that system, and finally predicts a continuous note position inside the selected bar. This design enforces geometric consistency by construction and narrows the search space step by step.
+
+The resulting model combines a shared page encoder with a causal Mamba audio encoder \cite{gu2024mamba}. At the system and bar stages, visual features from each candidate region are modulated by the audio context via Feature-wise Linear Modulation (FiLM) \cite{perez2018film} and refined through cross-attention over recent audio history. The note stage regresses continuous coordinates within the selected bar. At inference time, beam search maintains multiple candidate paths scored with learned transition penalties that favor smooth progression. Training combines strict ground-truth validation, a curriculum that gradually exposes the model to its own routing decisions, and synthetic score jumps that teach recovery after pauses.
+
+To support within-page recovery, the method also incorporates a silence-driven break mode inspired by the break-state intuition of Nakamura et al.\ \cite{nakamura2015real}. When a short pause is detected, the tracker suppresses transition penalties and widens the system search, then relocalizes when audio resumes without clearing the audio state. This gives the method an explicit recovery mechanism that operates causally and remains fully page-local.
+
+\textbf{Contributions.}
+\begin{itemize}
+\item We formulate image-based score following as hierarchical selection over known system and bar candidates, with continuous note localization inside the chosen bar.
+\item We design an architecture for causal streaming inference, combining Mamba audio encoding, shared page features, audio cross-attention at both the system and bar stages, and beam decoding with learned transition penalties.
+\item We reduce the gap between training and deployment through strict ground-truth filtering, a curriculum that gradually replaces correct-position routing with the model's own predictions, and jump augmentation aligned with the inference-time recovery mechanism.
+\item We add a silence-driven break mode for within-page relocalization that avoids hard resets and gives the tracker a principled jump-recovery behavior.
+\end{itemize}
+
+\section{Related Work}
+
+\textbf{Symbolic score following.}
+Online dynamic time warping \cite{dixon2005line} and probabilistic state-space models \cite{cont2009coupled,nakamura2015real} remain strong baselines for real-time alignment to symbolic scores. Nakamura et al.\ \cite{nakamura2015real} are particularly relevant: they model repeats and skips with an explicit transition structure and observe that the majority of real-world score jumps are preceded by short silent breaks. The proposed method adapts this observation for the image-based setting through its silence-driven break mode, operating on page layouts rather than symbolic event sequences. Recent benchmarking efforts such as Matchmaker \cite{park2025matchmaker} have systematized evaluation of symbolic methods but do not cover image-based trackers.
+
+\textbf{Image-based score following.}
+Dorfer et al.\ \cite{dorfer2016towards} first showed that a multimodal CNN can follow sheet music without symbolic input, classifying position into discrete staff-level buckets. Reinforcement-learning formulations then framed the task as agent navigation over score strips \cite{dorfer2018learning,henkel2019score}. Henkel et al.\ \cite{henkel2020learning} moved to full-page processing via audio-conditioned U-Net segmentation, predicting a pixel mask whose center of mass gives the note position. CYOLO \cite{henkel2021real} extended this to multi-resolution detection: three independent YOLO-style heads predict note, bar, and system bounding boxes from FiLM-conditioned feature maps on 416$\times$416 page images. However, the three heads share a backbone but predict in parallel without cross-level constraints, each frame is decoded independently of the previous one, and no recovery mechanism exists for when tracking is lost. The proposed method retains the full-page image setting and FiLM conditioning but replaces parallel detection with hierarchical selection, adds explicit temporal decoding via beam search with learnable priors, and introduces a within-page recovery mechanism.
+
+\section{Method}
+
+\subsection{Problem Formulation}
+
+The current score page is assumed to be known and to remain fixed until an external page turn occurs. For each page, layout metadata provides a finite set of systems and bars together with their bounding boxes. The tracker is therefore page-local: it selects among candidate systems and bars on the current page, and it resets its page-local state when the displayed page changes.
+
+At frame $t$, let $h_t=(x_{\le t},\,I)$ denote the audio history and score page image. The model predicts three quantities:
+\begin{itemize}
+\item the active system index $s_t$,
+\item the active bar index $b_t$ within that system,
+\item the continuous note position $u_t=(c_x,c_y)$ in bar-local coordinates.
+\end{itemize}
+
+This hierarchy is modeled explicitly as
+\begin{equation}
+p(s_t, b_t, u_t \mid h_t) = p(s_t \mid h_t)\; p(b_t \mid s_t, h_t)\; p(u_t \mid b_t, s_t, h_t).
+\end{equation}
+This factorization differs from flat detection in two ways. First, it enforces valid geometric structure by construction. Second, it reduces the decision space stage by stage, which is especially helpful in repetitive passages.
+
+\subsection{Audio and Visual Encoders}
+
+The audio stream is converted into a 78-dimensional log-filterbank representation at roughly 20 frames per second. A causal Mamba encoder \cite{gu2024mamba} processes these frames online and produces two outputs: a global conditioning vector $z_t$ and a short sequence of recent hidden states. The global vector is used for FiLM conditioning, while the hidden-state sequence provides a compact audio history for cross-attention.
+
+The score page is processed by a shared convolutional backbone with a feature pyramid network (FPN) head. The backbone takes a grayscale page image scaled to a fixed width and applies FiLM conditioning at the deeper convolutional stages, so that audio context modulates the visual features before they reach the selection heads. The FPN merges multi-scale features into a stride-8 feature map that is shared by all three stages. Because the page image is static within a page, all subsequent decisions operate on these audio-modulated page features together with the streaming audio representation.
+
+\subsection{Hierarchical Selection Cascade}
+
+\subsubsection{System Selection}
+
+The first stage scores all systems on the current page. For each system box, ROI Align extracts a local feature map from the shared page features. These ROI features are modulated by FiLM using $z_t$, processed by two convolutional blocks, and then refined by cross-attention over the buffered Mamba hidden states. The head outputs one logit per system, followed by a log-softmax over all page-local system candidates.
+
+\subsubsection{Bar Selection}
+
+After the system is chosen, the bar head scores only the bars inside that system. It follows the same ROI-based design as the system head---FiLM conditioning, two convolutional blocks, cross-attention over the Mamba buffer, pooling, and a scalar score per candidate. Cross-attention is used at both stages because bars within a system can be visually repetitive (e.g., repeated patterns or sequences), and attending to recent audio history helps disambiguate them beyond what modulation alone provides.
+
+\subsubsection{Continuous Note Localization}
+
+The final stage regresses a continuous position inside the selected bar. A note head takes the bar ROI, applies FiLM conditioning, and predicts $(c_x,c_y)\in[0,1]^2$ after a sigmoid layer. These values are converted back to page coordinates using the selected bar box. Continuous regression is used rather than discrete note buckets because it avoids quantization error and preserves smooth within-bar motion.
+
+\subsection{Temporal Priors and Beam Search}
+
+Streaming inference combines the system and bar scores with learnable temporal priors:
+\begin{equation}
+\mathrm{score}(s,b) = \log p(s) + \tau_s(s,s_{t\!-\!1}) + \log p(b \mid s) + \tau_b(b,b_{t\!-\!1}),
+\end{equation}
+where $\tau_s$ and $\tau_b$ are page-local transition penalties. The priors are learned end to end and bounded to remain non-positive, with stay transitions anchored at zero. This gives the tracker a mild preference for locally smooth motion without hard-coding extreme penalties.
+
+In normal operation, the model scores all systems, keeps the top $k$ systems, then scores bars inside each surviving system and keeps the top $m$ bars per system. The note head is evaluated only on the resulting beam. This makes inference efficient while still allowing the model to compare all systems before pruning.
+
+\subsection{Training}
+
+\subsubsection{Ground-Truth Validation}
+
+Before training, each frame is checked against the page layout metadata. Frames whose system or bar labels cannot be mapped consistently to the current page are marked invalid and removed from the training set. This step is important because silent label fallback can hide broken supervision and distort the temporal-prior chain.
+
+\subsubsection{Two-Phase Curriculum}
+
+Training proceeds in two phases. In Phase 1, the bar and note stages use ground-truth system routing. This lets the model learn clean candidate discrimination. In Phase 2, scheduled sampling gradually replaces ground-truth routing with the model's own system predictions. When the predicted system does not contain the ground-truth bar, the bar and note losses for that sample are masked while the system loss remains active. This exposes the model to its own routing errors and reduces the train--inference gap.
+
+\subsubsection{Losses and Regularization}
+
+System and bar stages are trained with cross-entropy, and the note head with mean-squared error on the bar-local position. The three losses are combined using either fixed task weights or learned uncertainty-based calibration. Data augmentation includes audio padding, tempo perturbation, impulse-response convolution for acoustic variation, and cold-start truncation that randomly shortens the audio context to prevent over-reliance on long histories.
+
+\subsection{Jump Augmentation}
+
+To train recovery behavior, the training pipeline includes on-the-fly jump augmentation. With a controllable probability, a training sample is replaced by audio and targets from another frame in the same piece. The sampled destination may represent a repeat, skip, restart, bar correction, or cross-page jump. For same-page jumps, the previous system and bar labels are frozen at the source frame's current position. This means the destination must overcome a biased temporal prior during training. For cross-page jumps, the priors are reset because page-local indices do not transfer across pages.
+
+The jump window is aligned with the later inference mechanism. Each jump sample contains a short silence gap followed by a brief post-silence segment from the destination. This teaches the model to relocalize from resumed audio after a pause rather than from an unrealistically long clean context.
+
+\subsection{Break Mode for Within-Page Recovery}
+
+The main inference-time recovery mechanism is break mode. Inspired by the silent-break observation of Nakamura et al.\ \cite{nakamura2015real}, the tracker monitors waveform energy with a hysteresis rule. When energy stays low for several consecutive frames, the tracker enters a break state. While in this state, it suppresses transition penalties, widens the system beam to cover all systems on the current page, and freezes the committed tracking state. When audio energy rises again, the tracker keeps transition penalties suppressed for a short grace window, during which it can relocalize and commit a new page-local position. The Mamba state and recent audio buffer are preserved throughout this process.
+
+This mechanism is intentionally page-local. It is meant to recover within-page repeats and skips, while page turns are handled externally by switching the displayed page and resetting the page-local state.
+
+\section{Evaluation Protocol}
+
+The method is evaluated in strict streaming mode on page-aligned piano data from MSMD \cite{dorfer2018learning}. All reported online metrics are produced by causal inference with no future audio. Three metrics are tracked: system accuracy, bar accuracy, and mean page-space localization error in pixels.
+
+Model selection follows the deployment setting rather than validation loss measured with correct-position routing. Each training epoch runs a small streaming validation subset, and every few epochs runs a full validation sweep. The checkpoint with the best streaming bar accuracy is kept as the main model. This criterion is important because losses measured under correct routing can look strong even when online tracking drifts.
+
+Three behaviors are evaluated separately:
+\begin{itemize}
+\item normal within-page tracking on monotonic validation pieces,
+\item robustness under scheduled sampling and beam decoding,
+\item recovery on jump-augmented or jump-annotated examples, with and without break mode.
+\end{itemize}
+
+\section{Discussion and Conclusion}
+
+This paper presented a hierarchical selection framework for real-time score following from sheet images. The core idea is that on a fixed score page, the tracking problem is better solved by selecting among known layout candidates than by detecting from scratch at every frame. This leads to a system--bar--note cascade that enforces geometric consistency by construction, combined with beam-search decoding over learned transition penalties, a training curriculum that gradually exposes the model to its own predictions, jump augmentation, and a silence-driven recovery mechanism for within-page relocalization.
+
+A natural question is whether page-local selection is too restrictive compared to a global model that searches across all pages simultaneously. Page locality suits most practical scenarios: the displayed page is typically known, and the vast majority of tracking decisions are local. Break mode handles the most common within-page discontinuities, while page turns are managed externally. A full multi-page jump model, as in symbolic state-space methods \cite{nakamura2015real}, would extend the framework but is not required for the settings evaluated here.
+
+Several directions remain open. Break mode relies on silence cues, so jumps without pauses (e.g., attacca transitions) are not yet covered. The method also assumes clean layout metadata; robustness to noisy or automatically detected bounding boxes is an important step toward deployment on arbitrary sheet music.
+
+\bibliography{ISMIRtemplate}
+
+\end{document}
