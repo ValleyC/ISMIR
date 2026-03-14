@@ -6,7 +6,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[submission]{ismir}
-\usepackage{amsmath,cite,url}
+\usepackage{amsmath,amssymb,cite,url}
 \usepackage{graphicx}
 \usepackage{color}
 
@@ -53,16 +53,16 @@ This paper proposes CODA, a cascaded online alignment framework that addresses t
 
 CODA combines a convolutional page encoder, whose features are shared across all three cascade stages, with a causal Mamba state-space audio encoder \cite{gu2024mamba}. At both the system and bar stages, visual features from each candidate region are modulated by the audio context via Feature-wise Linear Modulation (FiLM) \cite{perez2018film} and refined via cross-attention over the recent audio history. The note stage regresses continuous coordinates within the selected bar. At inference time, rather than committing to a single prediction per frame, CODA maintains multiple candidate paths. Each path is scored by combining model confidence with learned transition penalties that encourage the smooth progression of the model's predicted positions.
 
-To handle score discontinuities, CODA incorporates a silence-driven break mode inspired by the observation of Nakamura et al.\ \cite{nakamura2015real} that real-world score jumps always come after short pauses. When a pause is detected, the tracker suppresses transition penalties and widens the search to cover all system candidates on the page. When audio resumes, CODA relocalizes the active system from the expanded candidate set of systems after the discontinuity. Once the new system has been fetched, normal cascaded tracking can continue. This provides an explicit causal recovery mechanism. 
+To handle score discontinuities, CODA models jumps as arbitrary position changes preceded by silence. This is inspired by the observation of Nakamura et al.\ \cite{nakamura2015real} that real-world score jumps are typically preceded by short pauses. This formulation is deliberately general: musical discontinuities such as repeats, D.C., coda jumps, and even unscripted performer errors are all special cases of an arbitrary jump. When a pause is detected, the model suppresses transition penalties and widens the search to cover all system candidates on the page. When audio resumes, CODA relocalizes the active system from the expanded candidate set after the discontinuity, and normal cascaded tracking continues. This provides an explicit causal recovery mechanism that generalizes across all discontinuity types without requiring explicit knowledge of the score's repeat or jump structure.
 
 The major contributions of this paper are:
 \begin{itemize}
 \item We formulate the image-based score as a cascaded selection task over known system and bar candidates.
 \item We design a causal streaming architecture that combines Mamba audio encoding, shared page features, audio cross-attention at both the system and bar levels, and beam search with learned transition penalties.
-\item We introduce a silence-driven break mode for jump recovery that widens the candidate search during detected pauses and relocalizes when audio resumes.
+\item We introduce a general jump recovery mechanism that handles arbitrary score discontinuities by modeling them uniformly as silence-preceded position changes, without requiring prior knowledge of the score's repeat structure.
 \end{itemize}
 
-The remainder of this paper is organized as follows. Section~\ref{sec:related} reviews symbolic and image-based score following methods as well as prior work on handling repeats and jumps. Section~\ref{sec:method} introduces the CODA methodology in detail. Section~\ref{sec:eval} presents the evaluation protocol and results. Section~\ref{sec:conclusion} discusses limitations and future directions.
+% The remainder of this paper is organized as follows. Section~\ref{sec:related} reviews symbolic and image-based score following methods as well as prior work on handling repeats and jumps. Section~\ref{sec:method} introduces the CODA methodology in detail. Section~\ref{sec:eval} presents the evaluation protocol and results. Section~\ref{sec:conclusion} discusses limitations and future directions.
 
 \section{Related Work}\label{sec:related}
 
@@ -110,16 +110,36 @@ The score page image is processed by a convolutional backbone followed by a Feat
 
 \subsection{Cascaded Selection}
 
-Given the shared stride-8 feature map and the Mamba encoder outputs, CODA applies three cascaded stages to localize the active position on the score page. Each stage narrows the spatial scope before passing control to the next.
+Given the shared stride-8 feature map~$F$ and the Mamba encoder outputs, CODA applies three cascaded stages to localize the active position on the score page. Each stage narrows the spatial scope before passing control to the next. All three stages share the same processing pipeline, which we describe below.
+
+Let $H_t = [h_{t-W+1}, \ldots, h_t] \in \mathbb{R}^{W \times d}$ denote the buffer of the most recent~$W$ Mamba hidden states, where $d$ is the hidden dimension of the Mamba encoder. For each candidate region~$r$ (a system or bar bounding box known from layout metadata), the pipeline proceeds as follows.
+
+First, Region of Interest (ROI) Align \cite{he2017mask} extracts a fixed-size feature patch from the stride-8 feature map (i.e., at one-eighth the spatial resolution of the input):
+\begin{equation}\label{eq:roi}
+f_r = \mathrm{ROIAlign}(F,\, r).
+\end{equation}
+The extracted features are then modulated by the global audio vector~$z_t$ via Feature-wise Linear Modulation (FiLM) \cite{perez2018film}:
+\begin{equation}\label{eq:film}
+\tilde{f}_r = \gamma(z_t) \odot f_r + \beta(z_t),
+\end{equation}
+where $\gamma$ and $\beta$ are learned linear projections and $\odot$ denotes element-wise multiplication. Convolutional layers further process the conditioned features:
+\begin{equation}\label{eq:conv}
+\hat{f}_r = \mathrm{Conv}(\tilde{f}_r).
+\end{equation}
+In the system and bar stages, the convolved features are refined by scaled dot-product cross-attention \cite{vaswani2017attention} over the audio buffer. The queries are formed by spatially flattening~$\hat{f}_r$, while the keys and values are shared projections of the hidden-state buffer:
+\begin{equation}\label{eq:crossattn}
+\bar{f}_r = \mathrm{softmax}\!\left(\frac{\mathrm{flat}(\hat{f}_r)\,(W_a H_t)^\top}{\sqrt{d}}\right) W_a H_t,
+\end{equation}
+where $W_a$ is a learned linear projection. This cross-attention lets each candidate region attend to fine-grained temporal patterns in the recent audio history.
 
 \subsubsection{System selection.}
-All system bounding boxes on the current page are known from layout metadata. For each system candidate~$s$, Region of Interest (ROI) Align extracts a fixed-size feature patch from the stride-8 feature map (i.e., at one-eighth the spatial resolution of the input). The extracted features are modulated by the global audio vector~$z_t$ through FiLM, which scales and shifts the feature channels so that the visual representation reflects the current audio context. The modulated features are passed through convolutional layers and then refined via cross-attention, where the system features serve as queries and the Mamba hidden-state buffer provides keys and values. This allows each system candidate to attend to fine-grained temporal patterns in the recent audio history. A linear classifier on top of the refined features produces a logit for each system, and a log-softmax yields the system-level log-probability~$\log p(s_t \mid h_t)$.
+For each system candidate~$s$ on the current page, the full pipeline (Eqs.~\ref{eq:roi}--\ref{eq:crossattn}) produces a refined feature~$\bar{f}_s$. Adaptive average pooling followed by a linear classifier yields a logit for each system, and a log-softmax gives~$\log p(s_t \mid h_t)$.
 
 \subsubsection{Bar selection.}
-Once the active system is determined, the second stage considers only the bars within that system. Bar bounding boxes are again known from the layout, and ROI~Align extracts bar-level features from the same shared feature map. These features undergo FiLM conditioning with~$z_t$, convolutional processing, and cross-attention over the hidden-state buffer, following the same structure as the system stage but with an independent set of learned parameters. The output is a log-probability distribution over bars within the selected system,~$\log p(b_t \mid s_t, h_t)$.
+Once the active system is determined, the second stage considers only bars within that system. Each bar candidate~$b$ is processed through the same pipeline (Eqs.~\ref{eq:roi}--\ref{eq:crossattn}) with an independent set of learned parameters. The output is~$\log p(b_t \mid s_t, h_t)$.
 
 \subsubsection{Note localization.}
-The third stage localizes the active note within the selected bar. ROI~Align extracts features from the bar region, and FiLM conditioning with~$z_t$ followed by convolutional layers is applied. Unlike the system and bar stages, this stage does not use cross-attention, because the spatial scope is already narrow enough that the global audio vector provides sufficient context. A small convolutional head regresses continuous bar-local coordinates~$u_t = (c_x, c_y) \in [0,1]^2$, passed through a sigmoid activation to ensure the prediction remains within the bar boundaries.
+The third stage localizes the active note within the selected bar. The bar region is processed through Eqs.~\ref{eq:roi}--\ref{eq:conv} only; cross-attention is omitted because the spatial scope is already narrow enough that the global audio vector provides sufficient context. A small convolutional head regresses continuous bar-local coordinates~$u_t = (c_x, c_y) \in [0,1]^2$ via sigmoid activation.
 
 \subsection{Beam Search and Temporal Priors}
 
@@ -140,25 +160,34 @@ The hypothesis with the highest composite score determines the predicted system~
 
 \subsection{Training}
 
-Training proceeds in two phases with a ground-truth validation step applied before either phase begins.
+Because CODA is cascaded, it considers only bars within the selected system. Despite the advantages mentioned earlier, it also introduces problems. If the system-level prediction is incorrect, all three cascaded stages will be incorrect as well. If the model is trained exclusively on ground-truth system labels from the training dataset, it never learns to handle incorrect system inputs, leading to a mismatch between training and inference.
 
-Prior to training, each frame is checked against the page layout metadata to verify that its system and bar labels map consistently to the current page. Frames whose labels fall outside the annotated layout are marked invalid and excluded. This step is important because silent or ambiguous frames can carry stale labels that corrupt the temporal-prior chain and distort supervision.
+To address this, training proceeds in two phases. In the first phase, the bar and note stages always receive the ground-truth system labels from training data as input. This allows the bar head to learn to discriminate among bar candidates under ideal system selection conditions. In the second phase, the model's own system prediction is gradually mixed in. At each training step in the second phase, the ground-truth system is replaced by the model's self-predicted system with probability~$p_{\mathrm{pred}}$, which increases linearly from~0 to a maximum value~$p_{\max}$ over training. When the predicted system is wrong and does not contain the ground-truth bar, the bar and note losses for that frame are masked, since there is no meaningful supervision target. The system loss remains active, so the system head continues to receive corrective gradients. This two-phase curriculum progressively closes the gap between training and inference conditions.
 
-In the first phase, the bar and note stages always receive the ground-truth system as input, so that these stages learn clean candidate discrimination without being affected by system-level errors. In the second phase, scheduled sampling gradually replaces ground-truth system routing with the model's own predicted system. The probability of using the predicted system ramps up over the course of training. When the predicted system does not contain the ground-truth bar, the bar and note losses for that frame are masked while the system loss remains active. This exposes the model to its own routing errors during training and reduces the gap between teacher-forced training and autoregressive inference.
-
-The system and bar stages are trained with cross-entropy loss over their respective candidate sets, and the note head is trained with mean squared error on the bar-local coordinates. The three losses are combined using either fixed task weights or learned uncertainty-based weighting following the homoscedastic formulation of Kendall et al.\ \cite{kendall2018multi}. Data augmentation includes audio gain and noise perturbation, tempo scaling, impulse-response convolution for acoustic variation, and cold-start truncation that randomly shortens the audio prefix to prevent over-reliance on long histories.
+The system and bar stages are trained with cross-entropy loss over their respective candidate sets, and the note head is trained with mean squared error on the bar-local coordinates. The three task losses are combined via learned uncertainty weighting \cite{kendall2018multi}:
+\begin{equation}\label{eq:loss}
+\mathcal{L} = \frac{1}{2\sigma_s^2}\mathcal{L}_{\mathrm{sys}} + \frac{1}{2\sigma_b^2}\mathcal{L}_{\mathrm{bar}} + \frac{1}{2\sigma_n^2}\mathcal{L}_{\mathrm{note}} + \log \sigma_s \sigma_b \sigma_n,
+\end{equation}
+where $\sigma_s$, $\sigma_b$, and $\sigma_n$ are learnable task-specific uncertainty parameters that balance the three objectives automatically. Following recent image-based score-following work \cite{henkel2021multi,henkel2021real}, we apply tempo scaling and impulse-response convolution to improve robustness to acoustic variability. Standard audio augmentations, including gain and noise perturbation, are also used.
 
 \subsection{Jump Recovery}
 
-Score discontinuities such as repeats, D.C., and coda jumps cause the active position to move non-monotonically across the page. CODA addresses this with two complementary mechanisms: jump augmentation during training and a silence-driven break mode at inference.
+Score discontinuities such as repeats, D.C., and coda jumps cause the active position to move non-monotonically across the page. Rather than modeling each discontinuity type separately, CODA treats all of them as special cases of a single general event: an arbitrary position change preceded by a short silence. This formulation also covers unscripted performer errors, such as skipping ahead or restarting from an earlier passage. If the model can recover from an arbitrary jump to any position on the page, it can handle all specific discontinuity types without requiring prior knowledge of the score's repeat or jump structure. CODA realizes this with two complementary mechanisms: jump augmentation during training and a silence-driven break mode at inference.
 
-During training, jump augmentation synthetically introduces discontinuities on the fly. With a controllable probability, a training sample is replaced by audio and targets drawn from a different location in the same piece. The destination may represent a repeat, skip, restart, or cross-page jump. Each augmented sample contains a short silence gap followed by a brief post-silence segment from the destination, mirroring the observation of Nakamura et al.\ \cite{nakamura2015real} that real-world score jumps are typically preceded by pauses. For same-page jumps, the previous system and bar labels are frozen at the source position, so the model must overcome a biased temporal prior to relocalize at the destination. For cross-page jumps, the temporal priors are reset because page-local indices do not transfer across pages.
+During training, jump augmentation synthetically introduces arbitrary discontinuities on the fly as shown in Figure~\ref{fig:jump_recovery}(a). With a controllable probability, a training sample is spliced from two different locations within the same piece. The source position provides the initial audio context. Then a short silence of 3-12 frames is inserted, following the observation of Nakamura et al.\ \cite{nakamura2015real} that real-world score jumps are typically preceded by short pauses. Finally, a brief segment from a randomly selected destination position follows the silence to simulate a resume of the performance. Because the destination is selected at random, the model is exposed to the full range of possible jumps, including forward, backward, within-system, cross-system, and cross-page, rather than only the specific repeat patterns annotated in the score. For same-page jumps, the previous system and bar labels are frozen at the source position, so the model must overcome a biased temporal prior to relocalize at the destination. For cross-page jumps, the temporal priors are reset because page-local indices do not transfer across pages.
 
-At inference time, recovery is handled by break mode. The tracker monitors waveform energy using a hysteresis rule: when energy stays below a threshold for several consecutive frames, the tracker enters a break state. While in break state, the tracker suppresses transition penalties, widens the system beam to cover all systems on the current page, and freezes the committed tracking position. When audio energy rises again, the tracker keeps transition penalties suppressed for a short grace window, during which it relocalizes to the system and bar that best match the resumed audio. After the grace window expires, normal beam search decoding resumes from the new position. The Mamba hidden state and recent audio buffer are preserved throughout this process, so that the audio encoder retains temporal continuity even across the silence gap.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/jump_recovery.pdf}
+\caption{Jump recovery mechanism. (a)~Jump augmentation during training. (b)~Break mode at inference.}
+\label{fig:jump_recovery}
+\end{figure}
+
+At inference time, recovery is handled by the break mode illustrated in Figure~\ref{fig:jump_recovery}(b). The tracker monitors waveform energy using a hysteresis rule. When energy stays below a threshold for several consecutive frames, the tracker enters a break state. While in break state, the tracker suppresses transition penalties, widens the system beam to cover all systems on the current page, and freezes the committed tracking position. When audio energy rises again, the tracker keeps transition penalties suppressed for a short grace window, during which it relocalizes to the system and bar that best match the resumed audio. After the grace window expires, normal beam search decoding resumes from the new position. The Mamba hidden state and recent audio buffer are preserved throughout this process, so that the audio encoder retains temporal continuity even across the silence gap.
 
 Break mode is intentionally page-local: it recovers within-page discontinuities such as repeats and D.C.\ jumps, while cross-page transitions are handled by the page-turn mechanism described in Section~\ref{sec:method}.
 
-\section{Evaluation Protocol}\label{sec:eval}
+\section{Experiments and Results}\label{sec:eval}
 
 \section{Discussion and Conclusion}\label{sec:conclusion}
 
