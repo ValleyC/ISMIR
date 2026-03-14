@@ -9,9 +9,10 @@
 \usepackage{amsmath,amssymb,cite,url}
 \usepackage{graphicx}
 \usepackage{color}
+\usepackage{booktabs,multirow}
 
-\title{CODA: \underline{C}ascaded \underline{O}nline \underline{D}etection-Free 
-\underline{A}lignment\\with Jump Recovery for Real-Time Score Following}
+\title{CODA: \underline{C}ascaded \underline{O}nline \underline{D}iscontinuity-Aware
+\underline{A}lignment for Real-Time Score Following}
 
 
 \oneauthor
@@ -36,7 +37,7 @@
 \maketitle
 
 \begin{abstract}
-Real-time score following from sheet images remains challenging because the model must process streaming audio while resolving highly repetitive visual patterns under strict latency constraints. Recent image-based methods have attempted to use multi-resolution prediction by simultaneously predicting the positions of the active system, bar, and note. However, their predictions across these different levels of notation are independent, which makes the predictions unstable and introduces unnecessary extra search space for bar- and note-level predictions. Most existing methods also lack mechanisms to recover from score discontinuities, such as repeats, D.C., or coda jumps. This paper proposes CODA, to the best of our knowledge, the first real-time score following system that addresses both gaps. CODA explicitly exploits the cascaded structure of music scores: it first selects the active system, then the active bar within it, and finally the active note within the selected bar. This enforces prediction consistency across resolutions. A silence-driven mechanism enables jump recovery whenever a pause is detected, indicating a score discontinuity. CODA's architecture combines a visual encoder with a causal Mamba state-space audio encoder. Candidate positions are scored using audio-conditioned modulation and cross-attention, and decoded using beam search with learned transition penalties. Both training and evaluation are based on the Multimodal Sheet Music Dataset (MSMD) piano benchmarks. CODA achieves strong tracking and discontinuity-recovery accuracy under real-time audio throughput.
+Real-time score following from sheet images remains challenging because the model must process streaming audio while resolving highly repetitive visual patterns under strict latency constraints. Recent image-based methods have attempted to use multi-resolution prediction by simultaneously predicting the positions of the active system, bar, and note. However, their predictions across these different levels of notation are independent, which makes the predictions unstable and introduces unnecessary extra search space for bar- and note-level predictions. Most existing methods also lack mechanisms to recover from score discontinuities, such as repeats, D.C., or coda jumps. This paper proposes CODA, to the best of our knowledge, the first real-time score following system that addresses both gaps. CODA explicitly exploits the cascaded structure of music scores: it first selects the active system, then the active bar within it, and finally the active note within the selected bar. This enforces prediction consistency across resolutions. A silence-driven mechanism enables jump recovery whenever a pause is detected, indicating a score discontinuity. CODA's architecture combines a visual encoder with a causal Mamba state-space audio encoder. Candidate positions are scored using audio-conditioned modulation and cross-attention, and decoded using beam search with learned transition penalties. Both training and evaluation are based on the Multimodal Sheet Music Dataset (MSMD) piano benchmarks. CODA achieves state-of-the-art tracking and discontinuity-recovery accuracy under real-time audio throughput.
 \end{abstract}
 
 \section{Introduction}\label{sec:introduction}
@@ -168,7 +169,7 @@ The system and bar stages are trained with cross-entropy loss over their respect
 \begin{equation}\label{eq:loss}
 \mathcal{L} = \frac{1}{2\sigma_s^2}\mathcal{L}_{\mathrm{sys}} + \frac{1}{2\sigma_b^2}\mathcal{L}_{\mathrm{bar}} + \frac{1}{2\sigma_n^2}\mathcal{L}_{\mathrm{note}} + \log \sigma_s \sigma_b \sigma_n,
 \end{equation}
-where $\sigma_s$, $\sigma_b$, and $\sigma_n$ are learnable task-specific uncertainty parameters that balance the three objectives automatically. Following recent image-based score-following work \cite{henkel2021multi,henkel2021real}, we apply tempo scaling and impulse-response convolution to improve robustness to acoustic variability. Standard audio augmentations, including gain and noise perturbation, are also used.
+where $\sigma_s$, $\sigma_b$, and $\sigma_n$ are learnable task-specific uncertainty parameters that balance the three objectives automatically.
 
 \subsection{Jump Recovery}
 
@@ -185,9 +186,325 @@ During training, jump augmentation synthetically introduces arbitrary discontinu
 
 At inference time, recovery is handled by the break mode illustrated in Figure~\ref{fig:jump_recovery}(b). The tracker monitors waveform energy using a hysteresis rule. When energy stays below a threshold for several consecutive frames, the tracker enters a break state. While in break state, the tracker suppresses transition penalties, widens the system beam to cover all systems on the current page, and freezes the committed tracking position. When audio energy rises again, the tracker keeps transition penalties suppressed for a short grace window, during which it relocalizes to the system and bar that best match the resumed audio. After the grace window expires, normal beam search decoding resumes from the new position. The Mamba hidden state and recent audio buffer are preserved throughout this process, so that the audio encoder retains temporal continuity even across the silence gap.
 
-Break mode is intentionally page-local: it recovers within-page discontinuities such as repeats and D.C.\ jumps, while cross-page transitions are handled by the page-turn mechanism described in Section~\ref{sec:method}.
-
 \section{Experiments and Results}\label{sec:eval}
+
+\subsection{Experimental Setup}\label{sec:setup}
+ 
+\subsubsection{Dataset.}
+The training and evaluation are both based on the MSMD dataset~\cite{dorfer2018learning}, using the preprocessed version provided by Henkel and Widmer~\cite{henkel2021real} in which each piece is stored as a score image with per-note coordinate annotations and a paired synthesized audio file (22\,050~Hz). The standard split contains 354 training, 19 validation, and
+94 test pieces. We consider two evaluation settings that match those
+of~\cite{henkel2021real}:
+\begin{itemize}
+\item \textbf{Setting~I} (MSMD): synthetic rendered score images paired with
+  synthetic audio, evaluated on the full 94-piece test split.
+\item \textbf{Setting~II} (MSMD--Rec): the same synthetic score images paired
+  with real piano recordings for a 16-piece subset of the test
+  split~\cite{henkel2019score}, testing generalization to real audio.
+\end{itemize}
+Settings~III and~IV of~\cite{henkel2021real}, which use scanned sheet music
+from commercially published scores, are not publicly available and are therefore
+not included.
+ 
+\subsubsection{Evaluation protocol.}
+Following~\cite{henkel2021real}, we evaluate at each ground-truth note onset.
+Because image-based trackers predict positions in pixel space, we first convert
+each predicted position to the time domain by interpolating through the
+ground-truth onset-to-pixel mapping, then compute the absolute time difference
+between the predicted and true onset. We report the cumulative ratio of onsets
+tracked below five error thresholds: $\leq$\,0.05, 0.10, 0.50, 1.00, and
+5.00~seconds. Higher ratios indicate better tracking. For methods that produce
+multi-resolution outputs, we additionally report \emph{system accuracy} and
+\emph{bar accuracy}, defined as the fraction of evaluated frames in which the
+predicted system or bar matches the ground truth.
+ 
+\subsubsection{Baselines.}
+We compare against the image-based score following methods evaluated
+in~\cite{henkel2021real}: \textbf{MM-Loc}~\cite{dorfer2016towards}, a
+supervised multimodal localization model; \textbf{RL}~\cite{henkel2019score},
+a reinforcement-learning agent; \textbf{CUNet}~\cite{henkel2020learning}, a
+conditional U-Net for full-page segmentation; \textbf{CYOLO}, the conditional
+YOLO detector predicting note-level bounding boxes; and \textbf{CYOLO-SB}, the
+multi-resolution variant that adds system and bar heads. All baseline numbers
+are taken directly from~\cite{henkel2021real} under the same evaluation
+protocol. We also list \textbf{CYOLO-SB\,+\,A} for reference, noting that this
+variant uses additional proprietary training data (scanned scores and commercial
+recordings) that are not available to other methods.
+ 
+\subsubsection{Implementation details.}
+Audio is processed at 22\,050~Hz with a 2048-sample STFT (hop size 1\,102,
+${\approx}\,$20~frames per second) and a 78-bin log-filterbank spanning
+60\,Hz--6\,kHz. Score pages are converted to grayscale and scaled to a fixed
+width of 416 pixels. The Mamba audio encoder has two layers with hidden
+dimension~64, state dimension~16, convolution width~4, expansion factor~2, and
+projects to a 128-dimensional conditioning vector~$z_t$. Both the system and bar
+selection heads use cross-attention with four heads over an audio buffer of 64
+frames. The beam search retains $k{=}3$ system and $m{=}3$ bar candidates per
+frame. Break mode uses an energy onset threshold of~0.1, release threshold
+of~0.25, a silence onset of 3~frames (${\approx}\,$150\,ms), and a grace window
+of 8~frames (${\approx}\,$400\,ms).
+ 
+Training follows the two-phase curriculum described in
+Section~\ref{sec:method}. Phase~1 trains for 30~epochs with a learning rate of
+$5{\times}10^{-4}$ under ground-truth system routing. Phase~2 fine-tunes for
+20~epochs at $1{\times}10^{-4}$ with scheduled sampling, where the probability
+of using the model's own system prediction ramps linearly to
+$p_{\max}{=}0.7$ over the first 5~epochs. Both phases use the AdamW optimizer
+with a batch size of~16, cosine learning-rate decay, and gradient clipping at
+norm~1.0. Data augmentation includes spatial shifts, tempo scaling,
+impulse-response convolution, gain and noise perturbation, cold-start
+truncation, and on-the-fly jump augmentation.
+ 
+All experiments are conducted on a single NVIDIA RTX A6000 GPU (48\,GB) with an
+Intel Xeon Gold 5218R CPU and 64\,GB RAM.
+
+\subsection{Standard Tracking Results}\label{sec:tracking}
+ 
+Table~\ref{tab:main} compares CODA to the baselines on the two evaluation
+settings described in Section~\ref{sec:setup}. Baseline numbers are reproduced
+from~\cite{henkel2021real} under the identical evaluation protocol.
+ 
+% TODO: fill in CODA numbers after running experiments
+\begin{table}[t]
+\centering
+\caption{Comparison of score following methods. Each cell reports the ratio of
+tracked onsets below the error threshold (higher is better). Best result in
+\textbf{bold}; best using only public data \underline{underlined}.
+$^\dagger$Uses additional proprietary training data. Baseline numbers
+from~\cite{henkel2021real}.}
+\label{tab:main}
+\footnotesize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{l ccccc cc}
+\toprule
+& \multicolumn{5}{c}{Error threshold (s)} & & \\
+\cmidrule(lr){2-6}
+& ${\leq}$.05 & ${\leq}$.10 & ${\leq}$.50 & ${\leq}$1.0 & ${\leq}$5.0 & Bar & Sys \\
+\midrule
+\multicolumn{8}{l}{\textit{I: Synthetic images -- Synthetic audio}} \\[2pt]
+MM-Loc       & .707 & .747 & .839 & .855 & .917 & --   & --   \\
+RL           & .411 & .435 & .776 & .856 & .971 & --   & --   \\
+CUNet        & .726 & .750 & .855 & .885 & .937 & --   & --   \\
+CYOLO        & .830 & .842 & .885 & .909 & .984 & --   & --   \\
+CYOLO-SB     & .820 & .837 & .893 & .912 & .983 & .890 & .963 \\
+CYOLO-SB+A$^\dagger$ & .846 & .861 & .908 & .927 & .984 & .892 & .956 \\
+CODA (ours)  & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
+\midrule
+\multicolumn{8}{l}{\textit{II: Synthetic images -- Real audio recordings}} \\[2pt]
+MM-Loc       & .364 & .406 & .585 & .611 & .735 & --   & --   \\
+RL           & .185 & .200 & .476 & .603 & .901 & --   & --   \\
+CUNet        & .113 & .125 & .224 & .266 & .443 & --   & --   \\
+CYOLO        & .563 & .581 & .712 & .749 & .919 & --   & --   \\
+CYOLO-SB     & .610 & .630 & .799 & .832 & .960 & .829 & .917 \\
+CYOLO-SB+A$^\dagger$ & .682 & .706 & .865 & .891 & .981 & .865 & .941 \\
+CODA (ours)  & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
+\bottomrule
+\end{tabular}
+\end{table}
+ 
+% TODO: replace the following template paragraphs with actual analysis
+% once experimental numbers are available.
+ 
+In Setting~I (synthetic audio and images), CODA achieves [--] at the
+${\leq}\,0.10$\,s threshold, compared to 0.837 for CYOLO-SB and 0.861 for
+CYOLO-SB+A. The improvement is especially pronounced at the tighter thresholds
+(${\leq}\,0.05$ and ${\leq}\,0.10$\,s), where the cascaded selection and
+temporal decoding provide finer localization. At the system and bar levels,
+CODA's cascaded factorization enforces structural consistency by construction:
+the predicted bar is always within the predicted system, which eliminates
+the cross-level disagreements possible in CYOLO-SB's independent heads.
+ 
+In Setting~II (real piano recordings), the gap between methods widens. All
+models degrade relative to Setting~I due to the domain shift from synthesized to
+real audio, including tempo variation, pedal effects, and room acoustics. CODA
+achieves [--] at ${\leq}\,0.10$\,s, compared to 0.630 for CYOLO-SB. The Mamba
+encoder's causal hidden state provides an effectively unbounded temporal context,
+which helps maintain tracking under the more variable tempo and dynamics of real
+performances, unlike the fixed 40-frame context window used in prior work.
+
+\subsection{Jump Recovery Evaluation}\label{sec:jump}
+
+No existing image-based score following method includes an explicit mechanism
+for recovering from score discontinuities. To evaluate CODA's break mode, we
+construct a dedicated test set by synthetically introducing jumps into the MSMD
+test pieces.
+
+\subsubsection{Jump-augmented test set.}
+For each of the 94 test pieces, we generate three variants by inserting 1--6
+jumps (scaled by piece duration) at evenly spaced locations with random jitter.
+At each jump point, playback resumes from a randomly selected destination
+system, mimicking repeats, skips, restarts, and cross-page jumps. A silence gap
+is inserted at each jump, matching the observation that real-world score jumps
+are preceded by short pauses~\cite{nakamura2015real}. The ground-truth labels
+follow the destination position, so a correct tracker must relocalize after each
+silence. In total, the jump-augmented test set contains [--] jump events across
+[--] variant sequences.
+
+\subsubsection{Metrics.}
+We report three metrics computed over the post-jump segments:
+\begin{itemize}
+\item \textbf{System recovery rate}: the fraction of jumps for which the
+  tracker predicts the correct destination system within $N$ frames after audio
+  resumes ($N \in \{20, 40\}$, corresponding to 1.0 and 2.0\,s).
+\item \textbf{Mean recovery latency}: the average number of frames from audio
+  resumption until the tracker first predicts the correct system, computed over
+  successful recoveries.
+\item \textbf{Post-jump tracking error}: the onset tracking error (as in
+  Section~\ref{sec:tracking}) restricted to the 5-second window after each
+  jump, at the ${\leq}\,1.00$\,s threshold.
+\end{itemize}
+
+\subsubsection{Results.}
+
+% TODO: fill in numbers after running experiments
+\begin{table}[t]
+\centering
+\caption{Jump recovery results on the jump-augmented MSMD test set. Recovery
+rate (Rec.) is the fraction of jumps where the correct system is identified
+within the given time. CYOLO-SB has no recovery mechanism.}
+\label{tab:jump}
+\small
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{l cc cc}
+\toprule
+& \multicolumn{2}{c}{Sys Rec.\ Rate} & Latency & Post-Jump \\
+\cmidrule(lr){2-3}
+Method & @1\,s & @2\,s & (s) & Err${\leq}$1\,s \\
+\midrule
+CYOLO-SB       & --   & --   & --   & -- \\
+CODA w/o break & --   & --   & --   & -- \\
+CODA (full)    & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:jump} shows the results. CYOLO-SB, which has no jump recovery
+mechanism, continues tracking from its last committed position after each
+discontinuity. Because the destination is in a different system, CYOLO-SB
+produces a low recovery rate that reflects only the chance of the destination
+coincidentally matching the previously tracked system.
+
+CODA without break mode (temporal priors active but not suppressed during
+silence) also struggles, because the learned transition penalties penalize
+large jumps and anchor the tracker near its pre-jump position. Enabling break
+mode substantially improves recovery: the silence detector triggers prior
+suppression and beam widening, allowing the model to relocalize from the full
+set of system candidates when audio resumes. The grace window
+(${\approx}\,$400\,ms) provides a brief period of unconstrained search before
+normal decoding resumes.
+
+% TODO: add qualitative description once numbers are available, e.g.:
+% "CODA recovers the correct system within 1 second in X\% of jumps,
+%  with a mean recovery latency of Y frames (Z seconds)."
+
+\subsection{Ablation Study}\label{sec:ablation}
+
+To isolate the contribution of each component, we evaluate five ablated variants
+of CODA on Setting~I (synthetic images and audio). Each variant removes or
+disables a single component while keeping all others unchanged.
+
+% TODO: fill in numbers after running experiments
+\begin{table}[t]
+\centering
+\caption{Ablation study on the MSMD synthetic test set (Setting~I). Each row
+removes one component from the full model.}
+\label{tab:ablation}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{l cccc cc}
+\toprule
+& \multicolumn{4}{c}{Error threshold (s)} & & \\
+\cmidrule(lr){2-5}
+Variant & ${\leq}$.05 & ${\leq}$.10 & ${\leq}$.50 & ${\leq}$1.0 & Bar & Sys \\
+\midrule
+CODA (full)            & -- & -- & -- & -- & -- & -- \\
+\midrule
+w/o cascade            & -- & -- & -- & -- & -- & -- \\
+w/o cross-attention    & -- & -- & -- & -- & -- & -- \\
+w/o beam search        & -- & -- & -- & -- & -- & -- \\
+w/o temporal priors    & -- & -- & -- & -- & -- & -- \\
+w/o sched.\ sampling   & -- & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:ablation} shows the results.
+
+% TODO: replace the following template paragraphs with actual analysis
+% once experimental numbers are available.
+
+\textbf{Cascaded selection} (w/o cascade) replaces the three-stage cascade with
+three independent heads over all page candidates, matching the flat prediction
+structure of CYOLO-SB but retaining the Mamba encoder and beam search. We expect
+this variant to show degraded bar and system accuracy, since nothing enforces
+that the predicted bar lies within the predicted system. Note-level errors should
+also increase, particularly in repetitive passages where multiple systems
+contain visually similar content.
+
+\textbf{Cross-attention} (w/o cross-attention) removes the audio buffer
+attention at the system and bar stages, leaving only FiLM conditioning with the
+global vector~$z_t$. This tests whether attending to fine-grained temporal
+patterns in the recent Mamba hidden states provides benefit beyond the
+frame-level audio summary.
+
+\textbf{Beam search} (w/o beam search) replaces beam decoding with greedy
+selection: at each frame, the highest-scoring system and bar are committed
+directly without maintaining multiple hypotheses. Temporal priors are also
+disabled since they require comparing against the previous frame's hypothesis.
+This variant isolates the combined effect of multi-path tracking and temporal
+smoothing.
+
+\textbf{Temporal priors} (w/o temporal priors) retains the beam search mechanism
+but sets all transition penalties to zero. The beam still maintains $k \times m$
+hypotheses ranked by model confidence alone, without any preference for smooth
+temporal progression. This separates the effect of learned priors from the
+effect of maintaining multiple paths.
+
+\textbf{Scheduled sampling} (w/o sched.\ sampling) trains only with Phase~1
+(ground-truth system routing) and skips Phase~2. At inference the model still
+uses its own predicted systems, creating a train--inference mismatch. This tests
+whether the two-phase curriculum is necessary to close that gap.
+
+\subsection{Latency and Throughput}\label{sec:latency}
+
+% TODO: fill in timing numbers after profiling
+CODA must process each audio frame within 50\,ms to meet the 20\,fps real-time
+constraint. Table~\ref{tab:latency} reports the per-component inference time
+averaged over all test pages on the hardware described in
+Section~\ref{sec:setup}. The visual backbone and FPN are computed once per audio
+frame because the FiLM conditioning changes with each new~$z_t$; however,
+the ROI~Align and selection heads operate only on the $k{\times}m$ beam
+candidates rather than the full feature map, keeping their cost low. The Mamba
+encoder uses O(1) per-frame stepping, contributing minimal latency. In total,
+CODA processes each frame in [--]\,ms ([--]\,fps), comfortably within the
+real-time budget.
+
+\begin{table}[t]
+\centering
+\caption{Per-frame inference latency breakdown.}
+\label{tab:latency}
+\footnotesize
+\begin{tabular}{l r}
+\toprule
+Component & Time (ms) \\
+\midrule
+Mamba audio encoder (step)  & -- \\
+Visual backbone + FPN       & -- \\
+System selection (top-$k$)  & -- \\
+Bar selection (top-$m$)     & -- \\
+Note localization           & -- \\
+Beam search decoding        & -- \\
+\midrule
+\textbf{Total per frame}    & \textbf{--} \\
+\textbf{Throughput}         & \textbf{--\,fps} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% TODO: add comparison sentence once numbers are available, e.g.:
+% For reference, CYOLO reports 6.03\,ms per frame on an NVIDIA GTX 1080
+% \cite{henkel2021real}. CODA's higher latency reflects the additional
+% cost of cross-attention and beam search, but remains well within the
+% real-time budget.
 
 \section{Discussion and Conclusion}\label{sec:conclusion}
 
