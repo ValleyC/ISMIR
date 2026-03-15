@@ -266,15 +266,7 @@ In Setting~I, CODA achieves [--] at ${\leq}\,0.10$\,s, compared to 0.837 for CYO
 
 \subsection{Jump Recovery Evaluation}\label{sec:jump}
  
-To fairly evaluate the model's performance on jump recovery, a benchmark with fixed but various discontinuities is needed. Accordingly, we construct a jump-augmented test benchmark from the 94 MSMD test pieces. We manually annotated the repeat structure of each piece (repeat barlines, da capo, binary form, etc.) and partitioned the test set into two subsets:
-\begin{itemize}
-    \item \textbf{Repeat subset}: pieces with written repeat structures. Jumps follow the annotated performance order.
-    \item \textbf{Random subset}: pieces without repeats. Each piece receives at
-  least 3 diverse jumps (repeat, skip, restart, bar correction, page jump)
-  with random destinations, serving as a stress test for arbitrary recovery.
-\end{itemize}
-Ground-truth labels follow the destination position after each jump, so a
-correct tracker must relocalize after each silence gap.
+To fairly evaluate the model's performance on jump recovery, a benchmark with fixed but various discontinuities is needed. Accordingly, we construct a jump-augmented test benchmark from the 94 MSMD test pieces. We manually annotated the repeat structure of each piece (repeat barlines, da capo, binary form, etc.). The testset is partitioned into two subsets. The \emph{repeat subset} contains pieces with written repeat structures, where jumps follow the annotated performance order. The \emph{random subset} contains pieces without repeats, each receiving at least 3 diverse random jumps as a stress test.
  
 We report three metrics on post-jump segments: \emph{system recovery rate}
 (fraction of jumps where the correct system is identified within 1.0 and
