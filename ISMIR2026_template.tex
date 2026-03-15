@@ -44,7 +44,7 @@ Real-time score following from sheet images remains challenging because the mode
 
 Real-time score following is the process of aligning a live performance with the corresponding music score as the music proceeds in real time. It is fundamental for downstream applications, including automatic accompaniment, automatic page-turning, synchronized score display, and many other interactive music systems \cite{schwarz2015score,dannenberg2006music}. Classical approaches use online Dynamic Time Warping (DTW) or probabilistic state models to achieve real-time alignment \cite{dixon2005line,cont2009coupled,nakamura2015real}. However, these methods require a symbolic score such as MIDI or MusicXML, which is not always available.
 
-Image-based score following has recently emerged by working directly on sheet images. Early work classified positions into coarse staff-level buckets on small local image crops \cite{dorfer2016towards}, limiting both spatial resolution and the field of view. Reinforcement-learning methods widened the view to score strips but still operated on narrow windows, making recovery difficult when the agent drifted off track \cite{dorfer2018rl,henkel2019score}. Full-page segmentation addressed the field-of-view limitation by predicting a pixel-level heatmap over the entire page \cite{henkel2020learning}, but only localized at the note level without explicit system or bar tracking. The most recent of these image-based methods proposed multi-resolution detection with You Only Look Once (YOLO)-based object detection frameworks \cite{henkel2021real}. This work predicts the positions of systems, bars, and notes simultaneously using three independent output heads. However, there are no constraints or cascaded structures among these predictions. Nothing enforces that the predicted note lies within the predicted bar, or that the predicted bar lies within the predicted system. The model implicitly learns structural consistency, and disagreements among the three prediction levels can always occur. For example, the predicted note position is in a different bar from the predicted bar position, and the predicted bar position is in a different system from the predicted system. 
+Image-based score following has recently emerged by working directly on sheet images. Early work classified positions into coarse staff-level buckets on small local image crops \cite{dorfer2016towards}, limiting both spatial resolution and the field of view. Reinforcement-learning methods widened the view to score strips but still operated on narrow windows, making recovery difficult when the agent drifted off track \cite{dorfer2018rl,henkel2019score}. Full-page segmentation addressed the field-of-view limitation by predicting a pixel-level heatmap over the entire page \cite{henkel2020learning}, but only localized at the note level without explicit system or bar tracking. The most recent of these image-based methods proposed multi-resolution detection with You Only Look Once (YOLO)-based object detection frameworks \cite{henkel2021real}. This work predicts the positions of systems, bars, and notes simultaneously using three independent output heads. However, there are no constraints or cascaded structures among these predictions. Nothing enforces that the predicted note lies within the predicted bar, or that the predicted bar lies within the predicted system. The model implicitly learns structural consistency, and disagreements among the three prediction levels are often observed.
 
 This independence causes another problem. Because each head independently predicts over the full page, the bar and note heads must search all candidates on the page, increasing the likelihood of errors and instabilities. A cascaded structure would narrow the search at each stage: once the system is selected, only bars within that system are candidates; once a bar is selected, the candidate note positions are confined to that bar. More fundamentally, this method frames score tracking as an object detection problem. It detects from scratch at every audio frame, predicting bounding boxes as if the system and bar locations were unknown. However, in music performances, the score is static, and all candidate positions are known in advance. Detection is therefore unnecessary. The real task is to select which of the known candidates is currently being played. 
 
@@ -213,7 +213,7 @@ norm~1.0. Data augmentation includes the jump augmentation introduced in Section
 impulse-response convolution, gain and noise perturbation, cold-start
 truncation, and on-the-fly jump augmentation.
  
-All training and experiments are conducted on a single NVIDIA RTX A6000 GPU (48\,GB) with an Intel Xeon Gold 5218R CPU and 64\,GB RAM.
+All training and experiments are conducted on a single NVIDIA RTX A6000 GPU (48\,GB) with an Intel Xeon Gold 5218R CPU and 64\,GB RAM. At inference, CODA processes each audio frame in [--]\,ms ([--]\,fps), within the 50\,ms real-time budget at 20\,fps.
 
 \begin{table}[h]
 \centering
@@ -356,46 +356,45 @@ Table~\ref{tab:ablation} shows the results. Removing the cascade (\emph{w/o casc
 %  most important component. Cross-attention and temporal priors
 %  each contribute [X] and [Y] points at the $\leq$0.10\,s threshold."
 
-\subsection{Latency and Throughput}\label{sec:latency}
+% \subsection{Latency and Throughput}\label{sec:latency}
 
-% TODO: fill in timing numbers after profiling
-CODA must process each audio frame within 50\,ms to meet the 20\,fps real-time constraint. Table~\ref{tab:latency} reports the per-component inference time averaged over all test pages on the hardware described in
-Section~\ref{sec:setup}. The visual backbone and FPN are computed once per audio frame because the FiLM conditioning changes with each new~$z_t$; however, the ROI~Align and selection heads operate only on the $k{\times}m$ beam candidates rather than the full feature map, keeping their cost low. The Mamba encoder uses O(1) per-frame stepping, contributing minimal latency. In total, CODA processes each frame in [--]\,ms ([--]\,fps), comfortably within the real-time budget.
+% % TODO: fill in timing numbers after profiling
+% CODA must process each audio frame within 50\,ms to meet the 20\,fps real-time constraint. Table~\ref{tab:latency} reports the per-component inference time averaged over all test pages on the hardware described in
+% Section~\ref{sec:setup}. The visual backbone and FPN are computed once per audio frame because the FiLM conditioning changes with each new~$z_t$; however, the ROI~Align and selection heads operate only on the $k{\times}m$ beam candidates rather than the full feature map, keeping their cost low. The Mamba encoder uses O(1) per-frame stepping, contributing minimal latency. In total, CODA processes each frame in [--]\,ms ([--]\,fps), comfortably within the real-time budget.
 
-\begin{table}[h]
-\centering
-\caption{Per-frame inference latency breakdown.}
-\label{tab:latency}
-\footnotesize
-\begin{tabular}{l r}
-\toprule
-Component & Time (ms) \\
-\midrule
-Mamba audio encoder (step)  & -- \\
-Visual backbone + FPN       & -- \\
-System selection (top-$k$)  & -- \\
-Bar selection (top-$m$)     & -- \\
-Note localization           & -- \\
-Beam search decoding        & -- \\
-\midrule
-\textbf{Total per frame}    & \textbf{--} \\
-\textbf{Throughput}         & \textbf{--\,fps} \\
-\bottomrule
-\end{tabular}
-\end{table}
+% \begin{table}[h]
+% \centering
+% \caption{Per-frame inference latency breakdown.}
+% \label{tab:latency}
+% \footnotesize
+% \begin{tabular}{l r}
+% \toprule
+% Component & Time (ms) \\
+% \midrule
+% Mamba audio encoder (step)  & -- \\
+% Visual backbone + FPN       & -- \\
+% System selection (top-$k$)  & -- \\
+% Bar selection (top-$m$)     & -- \\
+% Note localization           & -- \\
+% Beam search decoding        & -- \\
+% \midrule
+% \textbf{Total per frame}    & \textbf{--} \\
+% \textbf{Throughput}         & \textbf{--\,fps} \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
 
-% TODO: add comparison sentence once numbers are available, e.g.:
-% For reference, CYOLO reports 6.03\,ms per frame on an NVIDIA GTX 1080
-% \cite{henkel2021real}. CODA's higher latency reflects the additional
-% cost of cross-attention and beam search, but remains well within the
-% real-time budget.
+% % TODO: add comparison sentence once numbers are available, e.g.:
+% % For reference, CYOLO reports 6.03\,ms per frame on an NVIDIA GTX 1080
+% % \cite{henkel2021real}. CODA's higher latency reflects the additional
+% % cost of cross-attention and beam search, but remains well within the
+% % real-time budget.
 
 \section{Discussion and Conclusion}\label{sec:conclusion}
-This paper presented CODA, a real-time score following system that formulates image-based tracking as cascaded selection over known system and bar candidates. By enforcing geometric consistency across prediction levels and decoding with beam search and learned temporal priors, CODA improves tracking precision over prior methods that rely on independent, frame-wise detection. The silence-driven break mode provides, to our knowledge, the first explicit jump recovery mechanism for image-based score following, handling repeats, D.C., coda jumps, and performer errors through a single unified mechanism.
- 
-Several limitations point to important directions for future work. First, like all prior image-based score following methods, CODA is trained and evaluated exclusively on solo piano music from the MSMD dataset. The limited size and variation of this dataset can lead to overfitting, particularly for visually or acoustically unusual passages such as extremely slow pieces, dense trills, or arpeggios --- failure modes also observed in prior work~\cite{henkel2021real}. Scaling to larger and more diverse datasets, potentially through semi-supervised approaches that leverage coarsely annotated data, is essential for improving robustness. Second, extending beyond piano to other instruments and ensembles remains an open challenge: polyphonic mixtures, varying timbres, and multi-staff scores (e.g., orchestral parts) introduce both visual and acoustic complexities that the current pipeline does not address. Third, our evaluation is limited to synthetic and re-rendered audio with typeset score images. Evaluating on scanned real-world scores paired with commercial recordings, as partially explored by~\cite{henkel2021real}, would provide a more realistic assessment of generalization. Making such datasets publicly available would benefit the broader research community.
- 
-More broadly, real-time score following from images has the potential to make interactive music applications --- automatic page turning, synchronized score display, and live accompaniment --- accessible without requiring any symbolic score representation. We hope that the cascaded selection formulation and jump recovery mechanism introduced in this work provide a useful foundation for future systems that can operate reliably across the full diversity of real-world musical performance.
+This paper presents CODA, which formulates image-based score following as 
+cascaded selection over known candidates and introduces a silence-triggered 
+break mode for jump recovery. A repeat-aware MSMD test benchmark is also 
+contributed to evaluating discontinuity handling. Despite the state-of-the-art performance achieved, several limitations remain. CODA is trained and evaluated exclusively on solo piano from the MSMD dataset~\cite{henkel2021real}. Larger datasets that pair real recordings with scanned scores would benefit not only this work but the field as a whole. The cascaded formulation itself is not limited to piano. Extending to other solo instruments is a natural first step. Chamber music and orchestral settings pose additional challenges due to timbral overlap, denser layouts, and multiple simultaneous parts. Finally, evaluation under real-world conditions, including scanned pages, commercial recordings, and live microphone input, is needed to assess the method under more realistic scenarios.
 
 \bibliography{ISMIRtemplate}
 
