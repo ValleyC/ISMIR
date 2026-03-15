@@ -42,7 +42,7 @@ Real-time score following from sheet images remains challenging because the mode
 
 \section{Introduction}\label{sec:introduction}
 
-Real-time score following is the process of aligning a live performance with the corresponding music score as the music proceeds in real time. It is fundamental for downstream applications, including automatic accompaniment, automatic page-turning, synchronized score display, and many other interactive music systems \cite{schwarz2015score,dannenberg2006music}. Classical approaches use online Dynamic Time Warping (DTW) or probabilistic state models to achieve real-time alignment \cite{dixon2005line,cont2009coupled,nakamura2015real}. However, these methods require a symbolic score such as MIDI or MusicXML, which is not always available.
+Real-time score following is the process of aligning a live performance with the corresponding music score as the music proceeds in real time. It is fundamental for downstream applications, including automatic accompaniment, automatic page-turning, synchronized score display, and many other interactive music systems \cite{orio2003score,dannenberg2006music}. Classical approaches use online Dynamic Time Warping (DTW) or probabilistic state models to achieve real-time alignment \cite{dixon2005line,cont2009coupled,nakamura2015real}. However, these methods require a symbolic score such as MIDI or MusicXML, which is not always available.
 
 Image-based score following has recently emerged by working directly on sheet images. Early work classified positions into coarse staff-level buckets on small local image crops \cite{dorfer2016towards}, limiting both spatial resolution and the field of view. Reinforcement-learning methods widened the view to score strips but still operated on narrow windows, making recovery difficult when the agent drifted off track \cite{dorfer2018rl,henkel2019score}. Full-page segmentation addressed the field-of-view limitation by predicting a pixel-level heatmap over the entire page \cite{henkel2020learning}, but only localized at the note level without explicit system or bar tracking. The most recent of these image-based methods proposed multi-resolution detection with You Only Look Once (YOLO)-based object detection frameworks \cite{henkel2021real}. This work predicts the positions of systems, bars, and notes simultaneously using three independent output heads. However, there are no constraints or cascaded structures among these predictions. Nothing enforces that the predicted note lies within the predicted bar, or that the predicted bar lies within the predicted system. The model implicitly learns structural consistency, and disagreements among the three prediction levels are often observed.
 
@@ -62,7 +62,7 @@ This paper proposes CODA, a cascaded online alignment framework that addresses t
 \section{Related Work}\label{sec:related}
 
 \subsection{Symbolic Score Following}
-Classical real-time score following relies on symbolic scores such as MIDI or MusicXML. Online DTW \cite{dixon2005line} provides a straightforward baseline by incrementally matching audio frames to score events. Probabilistic state-space models offer richer temporal modeling: Cont \cite{cont2009coupled} introduced a coupled duration-focused architecture, while Arzt and Widmer \cite{aagotnes2011towards} addressed robustness under arbitrary performer deviations using multi-agent tracking. Particle-filter methods such as that of Korzeniowski et al.\ \cite{korzeniowski2013tracking} extended the probabilistic framework to handle tempo changes and rests. Nakamura et al.\ \cite{nakamura2015real} modeled repeats and skips with an explicit transition structure and observed that the majority of real-world score jumps are preceded by short silent breaks. Jiang and Raphael \cite{jiang2020score} proposed a switching state-space model that tracks hidden tempo changes, improving alignment stability under expressive performance variation. More recently, Peter et al.\ \cite{peter2025pairing} combined real-time piano transcription with symbol-level tracking, achieving strong results by leveraging automatic music transcription as a front end. Matchmaker \cite{park2025matchmaker} has systematized evaluation of symbolic methods into an open-source benchmarking framework, though it does not cover image-based trackers.
+Classical real-time score following relies on symbolic scores such as MIDI or MusicXML. Online DTW \cite{dixon2005line} provides a straightforward baseline by incrementally matching audio frames to score events. Probabilistic state-space models offer richer temporal modeling: Cont \cite{cont2009coupled} introduced a coupled duration-focused architecture, while Arzt and Widmer \cite{arzt2010towards} addressed robustness under arbitrary performer deviations using multi-agent tracking. Particle-filter methods such as that of Korzeniowski et al.\ \cite{korzeniowski2013tracking} extended the probabilistic framework to handle tempo changes and rests. Nakamura et al.\ \cite{nakamura2015real} modeled repeats and skips with an explicit transition structure and observed that the majority of real-world score jumps are preceded by short silent breaks. Jiang and Raphael \cite{jiang2020score} proposed a switching state-space model that tracks hidden tempo changes, improving alignment stability under expressive performance variation. More recently, Peter et al.\ \cite{peter2025pairing} combined real-time piano transcription with symbol-level tracking, achieving strong results by leveraging automatic music transcription as a front end. Matchmaker \cite{park2025matchmaker} has systematized evaluation of symbolic methods into an open-source benchmarking framework, though it does not cover image-based trackers.
 
 \subsection{Image-Based Score Following}
 Dorfer et al.\ \cite{dorfer2016towards} first showed that a multimodal convolutional neural network (CNN) can follow sheet music without symbolic input, classifying position into discrete staff-level buckets on small image crops. Reinforcement-learning formulations then framed the task as agent navigation over score strips \cite{dorfer2018rl,henkel2019score}. Henkel et al.\ \cite{henkel2020learning} moved to full-page processing via audio-conditioned U-Net segmentation, predicting a pixel mask whose center of mass gives the note position. CYOLO \cite{henkel2021real} extended this to multi-resolution detection: three independent YOLO-style heads predict note, bar, and system bounding boxes from FiLM-conditioned feature maps. However, the three heads predict in parallel without cross-level constraints, each frame is decoded independently of the previous one, and no recovery mechanism exists for when tracking is lost.
@@ -94,7 +94,7 @@ This cascaded factorization inherently enforces valid geometric structure: the p
 
 Figure~\ref{fig:overview} illustrates CODA's overall architecture. CODA has two input streams: audio and visual.
  
-The audio stream is converted into a 78-dimensional log-filterbank at 20~frames per second. A two-layer causal Mamba encoder~\cite{gu2024mamba} processes each frame, producing a global conditioning vector~$z_t$ and a buffer of recent hidden states~$H_t$. $z_t$ summarizes the audio context up to frame~$t$, and $H_t$ serves as the $key$ for cross-attention, which will be mentioned in Eq~\ref{eq:crossattn}.
+The audio stream is converted into a 78-dimensional log-filterbank at 20~frames per second. A two-layer causal Mamba encoder~\cite{gu2024mamba} processes each frame, producing a global conditioning vector~$z_t$ and a buffer of recent hidden states~$H_t$. $z_t$ summarizes the audio context up to frame~$t$, while $H_t$ serves as the key and value source for cross-attention (Eq.~\ref{eq:crossattn}).
  
 The score page image is processed by a CNN backbone with FiLM conditioning at deeper stages. The output of the CNN backbone is further processed by a Feature Pyramid Network (FPN) that produces a single stride-8 feature map~$F$. This feature map is shared across all three cascade stages in the selection process.
 
@@ -116,7 +116,7 @@ where $\gamma$ and $\beta$ are learned linear projections and $\odot$ denotes el
 \begin{equation}\label{eq:conv}
 \hat{f}_r = \mathrm{Conv}(\tilde{f}_r).
 \end{equation}
-In the system and bar stages, the convolved features are refined by scaled dot-product cross-attention \cite{vaswani2017attention} over the audio buffer. The $queries$ are formed by spatially flattening~$\hat{f}_r$, while the $keys$ and values are shared projections of the hidden-state buffer $H_t$:
+In the system and bar stages, the convolved features are refined by scaled dot-product cross-attention \cite{vaswani2017attention} over the audio buffer. The queries are formed by spatially flattening~$\hat{f}_r$, while the keys and values are shared projections of the hidden-state buffer~$H_t$:
 \begin{equation}\label{eq:crossattn}
 \bar{f}_r = \mathrm{softmax}\!\left(\frac{\mathrm{flat}(\hat{f}_r)\,(W_a H_t)^\top}{\sqrt{d}}\right) W_a H_t,
 \end{equation}
@@ -137,13 +137,13 @@ The beam ranking combines model confidence with learned temporal priors that enc
 & + \log p(b_t \mid s_t, h_t) + \tau_b(b_t, b_{t-1}),
 \end{split}
 \end{equation}
-where $\tau_s$ and $\tau_b$ are page-local transition penalties for systems and bars, respectively. These priors are implemented as learnable parameters that are trained end-to-end with the rest of the model. They are clamped to remain non-positive, with the stay transition (i.e., $s_t = s_{t-1}$ or $b_t = b_{t-1}$) fixed at zero. This parameterization biases the tracker toward smooth temporal progression by encouraging forward progression and penalizing large jumps. However, the penalties are bounded rather than hard-coded, so the model can still override them when the audio strongly indicates that a real jump is occurring. The jump detection and recovery mechanism will be covered in Section~\ref{subsec: jump}.
+where $\tau_s$ and $\tau_b$ are page-local transition penalties for systems and bars, respectively. These priors are implemented as learnable parameters that are trained end-to-end with the rest of the model. They are clamped to remain non-positive, with the stay transition (i.e., $s_t = s_{t-1}$ or $b_t = b_{t-1}$) fixed at zero. This parameterization biases the tracker toward smooth temporal progression by encouraging forward progression and penalizing large jumps. However, the penalties are bounded rather than hard-coded, so the model can still override them when the audio strongly indicates that a real jump is occurring. The jump detection and recovery mechanism will be covered in Section~\ref{subsec:jump}.
 
 The hypothesis with the highest composite score determines the predicted system~$\hat{s}_t$ and bar~$\hat{b}_t$. The note head then regresses the note position~$\hat{u}_t$ within the selected bar, and the final output is the triplet~$(\hat{s}_t, \hat{b}_t, \hat{u}_t)$.
 
 \subsection{Training}
 
-Because CODA is cascaded, it only considers bars within the selected system. Despite the advantages mentioned earlier, it also introduces problems. If the system-level prediction itself is incorrect, both later cascaded predictions will be incorrect as well. If the model is trained exclusively on ground-truth system labels from the training dataset, it never learns to handle incorrect system inputs, leading to a mismatch between training and inference.
+Because CODA is cascaded, the bar and note stages only consider candidates within the selected system. This cascaded dependency means that if the system prediction is wrong, all downstream predictions will also be wrong. If the model is trained exclusively with ground-truth system labels, it never learns to handle incorrect system inputs, creating a mismatch between training and inference.
 
 To address this, training proceeds in two phases. In the first phase, the bar and note stages always receive the ground-truth system labels from training data. This allows the bar head to focus on discriminating among bar candidates under ideal system selections. In the second phase, the model's own system prediction is gradually mixed in. At each training step in the second phase, the ground-truth system is replaced by the model's self-predicted system with probability~$p_{\mathrm{pred}}$, which increases linearly from~0 to a maximum value~$p_{\max}$ over training. When the predicted system is wrong and does not contain the ground-truth bar, the bar and note training losses for that frame are masked because there is no meaningful supervision target. The system loss remains active, so the system head continues to receive corrective gradients. This two-phase curriculum training schedule progressively closes the gap between training and inference conditions.
 
@@ -151,10 +151,10 @@ The system and bar stages are trained with cross-entropy loss over their respect
 \begin{equation}\label{eq:loss}
 \mathcal{L} = \frac{1}{2\sigma_s^2}\mathcal{L}_{\mathrm{sys}} + \frac{1}{2\sigma_b^2}\mathcal{L}_{\mathrm{bar}} + \frac{1}{2\sigma_n^2}\mathcal{L}_{\mathrm{note}} + \log \sigma_s \sigma_b \sigma_n,
 \end{equation}
-where $\sigma_s$, $\sigma_b$, and $\sigma_n$ are learnable task-specific uncertainty parameters that balance the three objectives automatically. An additional on-the-fly augmentation for jump recovery is applied throughout both phases and is described in Section~\ref{subsec: jump}.
+where $\sigma_s$, $\sigma_b$, and $\sigma_n$ are learnable task-specific uncertainty parameters that balance the three objectives automatically.
 
 \subsection{Jump Detection and Recovery}
-\label{subsec: jump}
+\label{subsec:jump}
 
 \begin{figure}[t]
 \centering
@@ -165,7 +165,7 @@ where $\sigma_s$, $\sigma_b$, and $\sigma_n$ are learnable task-specific uncerta
 
 Score discontinuities such as repeats, D.C., and coda jumps cause the active position to move non-monotonically. Rather than modeling each type separately, CODA treats all discontinuities as arbitrary position changes preceded by silence. This assumption is grounded in the observation of Nakamura et al.~\cite{nakamura2015real}. This also covers unscripted performer errors. CODA realizes this with two mechanisms (Figure~\ref{fig:jump_recovery}).
  
-The jump augmented training is illustrated in Figure~\ref{fig:jump_recovery}(a). \emph{Jump augmentation} splices each sample with a controllable probability: a short silence (3--12 frames) is inserted, followed by audio from a randomly selected destination on the same or a different page. For same-page jumps, the previous system and bar labels are frozen at the source position, forcing the model to relocalize from audio evidence against a biased temporal prior.
+The jump-augmented training is illustrated in Figure~\ref{fig:jump_recovery}(a). \emph{Jump augmentation} splices each sample with a controllable probability: a short silence (3--12 frames) is inserted, followed by audio from a randomly selected destination on the same or a different page. For same-page jumps, the previous system and bar labels are frozen at the source position, forcing the model to relocalize from audio evidence against a biased temporal prior.
  
 At inference, \emph{break mode} monitors waveform energy with a hysteresis rule. As presented in Figure~\ref{fig:jump_recovery}(b), when energy stays below a threshold for several consecutive frames, the tracker enters a break state: transition penalties are suppressed, the system beam is widened to cover all candidates, and the committed position is frozen. When energy rises again, penalties remain suppressed for a short grace window during which the tracker relocalizes the jump destination. The Mamba hidden state is preserved throughout, maintaining temporal continuity across the silence gap.
 
@@ -209,9 +209,9 @@ $5{\times}10^{-4}$ under ground-truth system routing. Phase~2 fine-tunes for
 20~epochs at $1{\times}10^{-4}$ with scheduled sampling, where the probability of using the model's own system prediction ramps linearly to
 $p_{\max}{=}0.7$ over the first 5~epochs. Both phases use the AdamW optimizer
 with a batch size of~16, cosine learning-rate decay, and gradient clipping at
-norm~1.0. Data augmentation includes the jump augmentation introduced in Section~\ref{subsec: jump}, spatial shifts, tempo scaling,
-impulse-response convolution, gain and noise perturbation, cold-start
-truncation, and on-the-fly jump augmentation.
+norm~1.0. Data augmentation includes jump augmentation (Section~\ref{subsec:jump}), spatial shifts, tempo scaling,
+impulse-response convolution, gain and noise perturbation, and cold-start
+truncation.
  
 All training and experiments are conducted on a single NVIDIA RTX A6000 GPU (48\,GB) with an Intel Xeon Gold 5218R CPU and 64\,GB RAM. At inference, CODA processes each audio frame in [--]\,ms ([--]\,fps), within the 50\,ms real-time budget at 20\,fps.
 
@@ -219,7 +219,7 @@ All training and experiments are conducted on a single NVIDIA RTX A6000 GPU (48\
 \centering
 \caption{Comparison of score following methods. Each cell reports the ratio of
 tracked onsets below the error threshold (higher is better). Best result in
-\textbf{bold}; best using only public data \underline{underlined}.
+\textbf{bold}.
 $^\dagger$Uses additional proprietary training data. Baseline numbers
 from~\cite{henkel2021real}.}
 \label{tab:main}
@@ -275,7 +275,7 @@ prediction), and \emph{post-jump tracking error} (${\leq}\,1.0$\,s threshold
 in the 5\,s window after each jump).
  
 % TODO: fill in numbers after running experiments
-\begin{table}[t]
+\begin{table}[h]
 \centering
 \caption{Jump recovery results on the repeat-aware jump-augmented MSMD test
 set. Rec.\ = fraction of jumps where the correct system is identified within
