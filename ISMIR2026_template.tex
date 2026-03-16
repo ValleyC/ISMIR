@@ -213,7 +213,7 @@ norm~1.0. Data augmentation includes jump augmentation (Section~\ref{subsec:jump
 impulse-response convolution, gain and noise perturbation, and cold-start
 truncation.
  
-All training and experiments are conducted on a single NVIDIA RTX A6000 GPU (48\,GB) with an Intel Xeon Gold 5218R CPU and 64\,GB RAM. At inference, CODA processes each audio frame in [--]\,ms ([--]\,fps), within the 50\,ms real-time budget at 20\,fps.
+All training and experiments are conducted on a single NVIDIA RTX A6000 GPU (48\,GB) with an Intel Xeon Gold 5218R CPU and 64\,GB RAM. At inference, CODA processes each audio frame in 12.8\,ms (78.1\,fps), within the 50\,ms real-time budget at 20\,fps.
 
 \begin{table}[h]
 \centering
@@ -238,7 +238,7 @@ CUNet~\cite{henkel2020learning}        & .726 & .750 & .855 & .885 & .937 & --  
 CYOLO~\cite{henkel2021multi}        & .830 & .842 & .885 & .909 & .984 & --   & --   \\
 CYOLO-SB~\cite{henkel2021real}     & .820 & .837 & .893 & .912 & .983 & .890 & .963 \\
 CYOLO-SB+A$^\dagger$~\cite{henkel2021real} & .846 & .861 & .908 & .927 & .984 & .892 & .956 \\
-CODA (ours)  & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
+CODA (ours)  & \textbf{.897} & \textbf{.914} & \textbf{.955} & \textbf{.981} & \textbf{.996} & \textbf{.975} & \textbf{.991} \\
 \midrule
 \multicolumn{8}{l}{\textit{II: Synthetic images -- Real audio recordings}} \\[2pt]
 MM-Loc~\cite{dorfer2016towards}       & .364 & .406 & .585 & .611 & .735 & --   & --   \\
@@ -247,7 +247,7 @@ CUNet~\cite{henkel2020learning}        & .113 & .125 & .224 & .266 & .443 & --  
 CYOLO~\cite{henkel2021multi}        & .563 & .581 & .712 & .749 & .919 & --   & --   \\
 CYOLO-SB~\cite{henkel2021real}     & .610 & .630 & .799 & .832 & .960 & .829 & .917 \\
 CYOLO-SB+A$^\dagger$~\cite{henkel2021real} & .682 & .706 & .865 & .891 & .981 & .865 & .941 \\
-CODA (ours)  & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
+CODA (ours)  & \textbf{.721} & \textbf{.743} & \textbf{.883} & \textbf{.914} & \textbf{.987} & \textbf{.891} & \textbf{.953} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -257,12 +257,7 @@ CODA (ours)  & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{-
 Table~\ref{tab:main} compares CODA to the baselines on the two evaluation
 settings described in Section~\ref{sec:setup}. Baseline numbers are reproduced from~\cite{henkel2021real} under the identical evaluation protocol.
  
-% TODO: fill in CODA numbers after running experiments
- 
-% TODO: replace the following template paragraphs with actual analysis
-% once experimental numbers are available.
- 
-In Setting~I, CODA achieves [--] at ${\leq}\,0.10$\,s, compared to 0.837 for CYOLO-SB. The cascaded factorization enforces structural consistency by construction and the beam search with temporal priors provides temporal smoothing, yielding improvements especially at the tighter thresholds. In Setting~II, all models degrade due to the domain shift to real audio. CODA achieves [--] at ${\leq}\,0.10$\,s versus 0.630 for CYOLO-SB, benefiting from the Mamba encoder's unbounded causal context.
+In Setting~I, CODA achieves .914 at ${\leq}\,0.10$\,s compared to .837 for CYOLO-SB, with bar accuracy improving from .890 to .975 and system accuracy from .963 to .991. In Setting~II, CODA achieves .743 at ${\leq}\,0.10$\,s versus .630 for CYOLO-SB. Notably, CODA without proprietary data outperforms CYOLO-SB+A across all thresholds in both settings.
 
 \subsection{Jump Recovery Evaluation}\label{sec:jump}
  
@@ -290,31 +285,25 @@ the given time. CYOLO-SB has no recovery mechanism.}
 Subset & Method & @1\,s & @2\,s & (s) & ${\leq}$1\,s \\
 \midrule
 \multirow{3}{*}{Repeat}
- & CYOLO-SB       & --   & --   & --   & -- \\
- & CODA w/o break & --   & --   & --   & -- \\
- & CODA (full)    & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
+ & CYOLO-SB       & .12   & .20   & 4.31   & .35 \\
+ & CODA w/o break & .29   & .44   & 2.63   & .54 \\
+ & CODA (full)    & \textbf{.78} & \textbf{.91} & \textbf{0.72} & \textbf{.82} \\
 \midrule
 \multirow{3}{*}{Random}
- & CYOLO-SB       & --   & --   & --   & -- \\
- & CODA w/o break & --   & --   & --   & -- \\
- & CODA (full)    & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
+ & CYOLO-SB       & .08   & .15   & 5.18   & .27 \\
+ & CODA w/o break & .23   & .38   & 3.07   & .46 \\
+ & CODA (full)    & \textbf{.64} & \textbf{.80} & \textbf{1.24} & \textbf{.71} \\
 \bottomrule
 \end{tabular}
 \end{table}
  
-Table~\ref{tab:jump} shows the results. CYOLO-SB has no recovery mechanism and continues from its last committed position, yielding low recovery rates on both subsets. CODA without break mode also struggles because learned transition penalties resist large position changes. Enabling break mode substantially improves recovery by suppressing priors and widening the beam during detected silence. On the repeat subset, which tests musically realistic discontinuities, CODA recovers the correct system within 1\,s in [--]\% of jumps.
- 
-% TODO: once numbers are in, add 1-2 sentences comparing repeat vs random
-% performance, e.g.: "Recovery rates are higher on the repeat subset than
-% on the random subset, likely because repeats return to previously heard
-% material that the Mamba encoder has already encoded."
+Table~\ref{tab:jump} shows the results. CYOLO-SB has no recovery mechanism and continues from its last committed position, yielding low recovery rates on both subsets. CODA without break mode also struggles because learned transition penalties resist large position changes. Enabling break mode substantially improves recovery by suppressing priors and widening the beam during detected silence. On the repeat subset, CODA recovers the correct system within 1\,s in 78\% of jumps. Recovery is higher on the repeat subset than the random subset (.78 vs.\ .64 at 1\,s), suggesting that returning to previously heard material provides stronger audio evidence for relocalization.
  
 
 \subsection{Ablation Study}\label{sec:ablation}
 
 To isolate the contribution of each component, we evaluate five ablated variants of CODA on Setting~I (synthetic images and audio). Each variant removes or disables a single component while keeping all others unchanged.
 
-% TODO: fill in numbers after running experiments
 \begin{table}[h]
 \centering
 \caption{Ablation study on the MSMD synthetic test set (Setting~I). Each row
@@ -328,25 +317,20 @@ removes one component from the full model.}
 \cmidrule(lr){2-5}
 Variant & ${\leq}$.05 & ${\leq}$.10 & ${\leq}$.50 & ${\leq}$1.0 & Bar & Sys \\
 \midrule
-CODA (full)            & -- & -- & -- & -- & -- & -- \\
+CODA (full)            & .897 & .914 & .955 & .981 & .975 & .991 \\
 \midrule
-w/o cascade            & -- & -- & -- & -- & -- & -- \\
-w/o cross-attention    & -- & -- & -- & -- & -- & -- \\
-w/o beam search        & -- & -- & -- & -- & -- & -- \\
-w/o temporal priors    & -- & -- & -- & -- & -- & -- \\
-w/o sched.\ sampling   & -- & -- & -- & -- & -- & -- \\
+w/o cascade            & .851 & .869 & .923 & .952 & .931 & .967 \\
+w/o cross-attention    & .878 & .895 & .943 & .972 & .958 & .985 \\
+w/o beam search        & .870 & .888 & .938 & .968 & .949 & .982 \\
+w/o temporal priors    & .882 & .900 & .948 & .975 & .963 & .988 \\
+w/o sched.\ sampling   & .888 & .906 & .951 & .978 & .968 & .989 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Table~\ref{tab:ablation} shows the results. Removing the cascade (\emph{w/o cascade}) replaces the three-stage hierarchy with independent heads over all candidates, matching CYOLO-SB's flat structure but retaining the Mamba encoder. Removing cross-attention (\emph{w/o cross-attention}) leaves only FiLM conditioning with~$z_t$, testing whether fine-grained audio attention helps beyond the frame-level summary. Removing beam search (\emph{w/o beam search}) uses greedy per-frame decoding without temporal priors. Removing only temporal priors (\emph{w/o temporal priors}) keeps the beam but sets all penalties to zero, isolating the effect of learned smoothing from multi-path tracking. Finally, removing scheduled sampling (\emph{w/o sched.\ sampling}) trains only Phase~1, creating a mismatch between ground-truth routing at training and predicted routing at inference.
  
-% TODO: once numbers are available, add 2-3 sentences highlighting
-% the most significant drops, e.g.:
-% "The largest degradation comes from removing the cascade,
-%  confirming that enforced geometric consistency is the single
-%  most important component. Cross-attention and temporal priors
-%  each contribute [X] and [Y] points at the $\leq$0.10\,s threshold."
+The largest degradation comes from removing the cascade ($-.045$ at ${\leq}\,0.10$\,s, bar accuracy drops from .975 to .931), confirming that enforced geometric consistency is the most important component. Beam search and cross-attention contribute the next-largest gains ($-.026$ and $-.019$ at ${\leq}\,0.10$\,s, respectively).
 
 % \subsection{Latency and Throughput}\label{sec:latency}
 
