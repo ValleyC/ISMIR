@@ -54,7 +54,7 @@ This paper proposes CODA, a cascaded online alignment framework that addresses t
 \begin{itemize}
 \item A cascaded selection formulation that enforces geometric consistency across system, bar, and note predictions while narrowing the search space at each stage.
 \item A causal streaming architecture combining Mamba audio encoding, FiLM conditioning, cross-attention, and beam search with learned temporal priors.
-\item A silence-driven jump recovery mechanism for arbitrary score discontinuities.
+\item A silence-driven jump recovery mechanism for arbitrary score discontinuities, evaluated on a repeat-aware jump test benchmark that we contribute for the MSMD test set.
 \end{itemize}
 
 % The remainder of this paper is organized as follows. Section~\ref{sec:related} reviews symbolic and image-based score following methods as well as prior work on handling repeats and jumps. Section~\ref{sec:method} introduces the CODA methodology in detail. Section~\ref{sec:eval} presents the evaluation protocol and results. Section~\ref{sec:conclusion} discusses limitations and future directions.
@@ -102,7 +102,7 @@ The score page image is processed by a CNN backbone with FiLM conditioning at de
 
 Given the shared stride-8 feature map~$F$ from the visual input stream and the Mamba encoder outputs from the audio input stream, CODA applies three cascaded stages to localize the active position on the score page. Each stage narrows the spatial scope before proceeding to the next stage. All three stages share the same processing pipeline, which we describe below.
 
-Let $H_t = [h_{t-W+1}, \ldots, h_t] \in \mathbb{R}^{W \times d}$ denote the buffer of the most recent~$W$ Mamba hidden states, where $d$ is the hidden dimension of the Mamba encoder. For each candidate region~$r$ (a system or bar bounding box from the score layout metadata), let $f_r$ denote the extracted visual features for~$r$. The pipeline proceeds as follows.
+Let $H_t = [h_{t-L+1}, \ldots, h_t] \in \mathbb{R}^{L \times d}$ denote the buffer of the most recent~$L$ Mamba hidden states, where $d$ is the hidden dimension of the Mamba encoder. For each candidate region~$r$ (a system or bar bounding box from the score layout metadata), let $f_r$ denote the extracted visual features for~$r$. The pipeline proceeds as follows.
 
 First, Region of Interest (ROI) Align \cite{he2017mask} extracts a fixed-size feature patch from the stride-8 feature map (i.e., at one-eighth the spatial resolution of the input):
 \begin{equation}\label{eq:roi}
@@ -167,7 +167,7 @@ Score discontinuities such as repeats, D.C., and coda jumps cause the active pos
  
 The jump-augmented training is illustrated in Figure~\ref{fig:jump_recovery}(a). \emph{Jump augmentation} splices each sample with a controllable probability: a short silence (3--12 frames) is inserted, followed by audio from a randomly selected destination on the same or a different page. For same-page jumps, the previous system and bar labels are frozen at the source position, forcing the model to relocalize from audio evidence against a biased temporal prior.
  
-At inference, \emph{break mode} monitors waveform energy with a hysteresis rule. As presented in Figure~\ref{fig:jump_recovery}(b), when energy stays below a threshold for several consecutive frames, the tracker enters a break state: transition penalties are suppressed, the system beam is widened to cover all candidates, and the committed position is frozen. When energy rises again, penalties remain suppressed for a short grace window during which the tracker relocalizes the jump destination. The Mamba hidden state is preserved throughout, maintaining temporal continuity across the silence gap.
+At inference, \emph{break mode} monitors waveform energy with a hysteresis rule. As presented in Figure~\ref{fig:jump_recovery}(b), when energy stays below a threshold for several consecutive frames, the tracker enters a break state: transition penalties are suppressed, the system beam is widened to cover all candidates, and the committed position is frozen. When energy rises again, penalties remain suppressed for a short grace window during which the tracker relocalizes to the jump destination. The Mamba hidden state is preserved throughout, maintaining temporal continuity across the silence gap.
 
 \section{Experiments and Results}\label{sec:eval}
 
@@ -232,21 +232,21 @@ from~\cite{henkel2021real}.}
 & ${\leq}$.05 & ${\leq}$.10 & ${\leq}$.50 & ${\leq}$1.0 & ${\leq}$5.0 & Bar & Sys \\
 \midrule
 \multicolumn{8}{l}{\textit{I: Synthetic images -- Synthetic audio}} \\[2pt]
-MM-Loc       & .707 & .747 & .839 & .855 & .917 & --   & --   \\
-RL           & .411 & .435 & .776 & .856 & .971 & --   & --   \\
-CUNet        & .726 & .750 & .855 & .885 & .937 & --   & --   \\
-CYOLO        & .830 & .842 & .885 & .909 & .984 & --   & --   \\
-CYOLO-SB     & .820 & .837 & .893 & .912 & .983 & .890 & .963 \\
-CYOLO-SB+A$^\dagger$ & .846 & .861 & .908 & .927 & .984 & .892 & .956 \\
+MM-Loc~\cite{dorfer2016towards}       & .707 & .747 & .839 & .855 & .917 & --   & --   \\
+RL~\cite{henkel2019score}           & .411 & .435 & .776 & .856 & .971 & --   & --   \\
+CUNet~\cite{henkel2020learning}        & .726 & .750 & .855 & .885 & .937 & --   & --   \\
+CYOLO~\cite{henkel2021multi}        & .830 & .842 & .885 & .909 & .984 & --   & --   \\
+CYOLO-SB~\cite{henkel2021real}     & .820 & .837 & .893 & .912 & .983 & .890 & .963 \\
+CYOLO-SB+A$^\dagger$~\cite{henkel2021real} & .846 & .861 & .908 & .927 & .984 & .892 & .956 \\
 CODA (ours)  & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
 \midrule
 \multicolumn{8}{l}{\textit{II: Synthetic images -- Real audio recordings}} \\[2pt]
-MM-Loc       & .364 & .406 & .585 & .611 & .735 & --   & --   \\
-RL           & .185 & .200 & .476 & .603 & .901 & --   & --   \\
-CUNet        & .113 & .125 & .224 & .266 & .443 & --   & --   \\
-CYOLO        & .563 & .581 & .712 & .749 & .919 & --   & --   \\
-CYOLO-SB     & .610 & .630 & .799 & .832 & .960 & .829 & .917 \\
-CYOLO-SB+A$^\dagger$ & .682 & .706 & .865 & .891 & .981 & .865 & .941 \\
+MM-Loc~\cite{dorfer2016towards}       & .364 & .406 & .585 & .611 & .735 & --   & --   \\
+RL~\cite{henkel2019score}           & .185 & .200 & .476 & .603 & .901 & --   & --   \\
+CUNet~\cite{henkel2020learning}        & .113 & .125 & .224 & .266 & .443 & --   & --   \\
+CYOLO~\cite{henkel2021multi}        & .563 & .581 & .712 & .749 & .919 & --   & --   \\
+CYOLO-SB~\cite{henkel2021real}     & .610 & .630 & .799 & .832 & .960 & .829 & .917 \\
+CYOLO-SB+A$^\dagger$~\cite{henkel2021real} & .682 & .706 & .865 & .891 & .981 & .865 & .941 \\
 CODA (ours)  & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
 \bottomrule
 \end{tabular}
@@ -266,7 +266,7 @@ In Setting~I, CODA achieves [--] at ${\leq}\,0.10$\,s, compared to 0.837 for CYO
 
 \subsection{Jump Recovery Evaluation}\label{sec:jump}
  
-To fairly evaluate the model's performance on jump recovery, a benchmark with fixed but various discontinuities is needed. Accordingly, we construct a jump-augmented test benchmark from the 94 MSMD test pieces. We manually annotated the repeat structure of each piece (repeat barlines, da capo, binary form, etc.). The testset is partitioned into two subsets. The \emph{repeat subset} contains pieces with written repeat structures, where jumps follow the annotated performance order. The \emph{random subset} contains pieces without repeats, each receiving at least 3 diverse random jumps as a stress test.
+To fairly evaluate jump recovery, we construct a jump test benchmark from the 94 MSMD test pieces. We manually annotated the repeat structure of each piece (repeat barlines, da capo, volta brackets, binary form, etc.). Of the 94 pieces, 66 contain written repeat structures and 28 do not. The benchmark is partitioned into two subsets accordingly. The \emph{repeat subset} comprises the 66 pieces with repeats, producing 131 jumps that follow the annotated performance order. The \emph{random subset} comprises the remaining 28 pieces without repeats, each receiving at least 3 randomly placed jumps as a stress test.
  
 We report three metrics on post-jump segments: \emph{system recovery rate}
 (fraction of jumps where the correct system is identified within 1.0 and
@@ -383,10 +383,9 @@ Table~\ref{tab:ablation} shows the results. Removing the cascade (\emph{w/o casc
 % % real-time budget.
 
 \section{Discussion and Conclusion}\label{sec:conclusion}
-This paper presents CODA, which formulates image-based score following as 
-cascaded selection over known candidates and introduces a silence-triggered 
-break mode for jump recovery. A repeat-aware MSMD test benchmark is also 
-contributed to evaluating discontinuity handling. Despite the state-of-the-art performance achieved, several limitations remain. CODA is trained and evaluated exclusively on solo piano from the MSMD dataset~\cite{henkel2021real}. Larger datasets that pair real recordings with scanned scores would benefit not only this work but the field as a whole. The cascaded formulation itself is not limited to piano. Extending to other solo instruments is a natural first step. Chamber music and orchestral settings pose additional challenges due to timbral overlap, denser layouts, and multiple simultaneous parts. Finally, evaluation under real-world conditions, including scanned pages, commercial recordings, and live microphone input, is needed to assess the method under more realistic scenarios.
+This paper presents CODA, which formulates image-based score following as
+cascaded selection over known candidates and introduces a silence-triggered
+break mode for jump recovery. We also contribute a repeat-aware jump test benchmark with manually annotated repeat structures for the MSMD test set, providing the first standardized evaluation protocol for discontinuity handling in image-based score following. Despite the state-of-the-art performance achieved, several limitations remain. CODA is trained and evaluated exclusively on solo piano from the MSMD dataset~\cite{henkel2021real}. Larger datasets that pair real recordings with scanned scores would benefit not only this work but the field as a whole. The cascaded formulation itself is not limited to piano. Extending to other solo instruments is a natural first step. Chamber music and orchestral settings pose additional challenges due to timbral overlap, denser layouts, and multiple simultaneous parts. Finally, evaluation under real-world conditions, including scanned pages, commercial recordings, and live microphone input, is needed to assess the method under more realistic scenarios.
 
 \bibliography{ISMIRtemplate}
 
