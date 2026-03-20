@@ -206,14 +206,10 @@ dimension~64, state dimension~16, convolution width~4, expansion factor~2, and p
 Training follows the two-phase curriculum described in
 Section~\ref{sec:method}. Phase~1 trains for 30~epochs with a learning rate of
 $5{\times}10^{-4}$ under ground-truth system routing. Phase~2 fine-tunes for
-20~epochs at $1{\times}10^{-4}$ with scheduled sampling, where the probability of using the model's own system prediction ramps linearly to
-$p_{\max}{=}0.7$ over the first 5~epochs. Both phases use the AdamW optimizer
-with a batch size of~16, cosine learning-rate decay, and gradient clipping at
-norm~1.0. Data augmentation includes jump augmentation (Section~\ref{subsec:jump}), spatial shifts, tempo scaling,
-impulse-response convolution, gain and noise perturbation, and cold-start
-truncation.
+20~epochs at $1{\times}10^{-4}$ with scheduled sampling, where the probability of using the model's own system prediction ramps linearly to $p_{\max}{=}0.7$ over the first 5~epochs. Both phases use the AdamW optimizer with a batch size of~16, cosine learning-rate decay, and gradient clipping at
+norm~1.0. Data augmentation includes jump augmentation (Section~\ref{subsec:jump}), spatial shifts, tempo scaling, impulse-response convolution, gain and noise perturbation, and cold-start truncation. Following~\cite{henkel2021real}, we also apply impulse response (IR) augmentation during training, convolving the audio with a randomly selected room impulse response on-the-fly to model varying microphone and room conditions.
  
-All training and experiments are conducted on a single NVIDIA RTX A6000 GPU (48\,GB) with an Intel Xeon Gold 5218R CPU and 64\,GB RAM. At inference, CODA processes each audio frame in 12.8\,ms (78.1\,fps), within the 50\,ms real-time budget at 20\,fps.
+CODA has 2.0M trainable parameters. All training and experiments are conducted on a single NVIDIA RTX A6000 GPU (48\,GB) with an Intel Xeon Gold 5218R CPU and 64\,GB RAM. At inference, CODA processes each audio frame in 12.8\,ms (78.1\,fps), within the 50\,ms real-time budget at 20\,fps.
 
 \begin{table}[h]
 \centering
