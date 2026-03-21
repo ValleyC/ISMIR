@@ -11,6 +11,9 @@
 \usepackage{color}
 \usepackage{booktabs,multirow}
 
+\usepackage{caption}
+\captionsetup{font=small}
+
 \title{CODA: \underline{C}ascaded \underline{O}nline \underline{D}iscontinuity-Aware
 \underline{A}lignment for Real-Time Score Following}
 
@@ -100,7 +103,14 @@ The score page image is processed by a CNN backbone with FiLM conditioning at de
 
 \subsection{Cascaded Selection}
 
-Given the shared stride-8 feature map~$F$ from the visual input stream and the Mamba encoder outputs from the audio input stream, CODA applies three cascaded stages to localize the active position on the score page. Each stage narrows the spatial scope before proceeding to the next stage. All three stages share the same processing pipeline, which we describe below.
+Given the shared stride-8 feature map~$F$ from the visual input stream and the Mamba encoder outputs from the audio input stream, CODA applies three cascaded stages to localize the active position on the score page. Each stage narrows the spatial scope before proceeding to the next stage. All three stages share the same processing pipeline, which we describe below. Figure~\ref{fig:tracking} illustrates the output on a real score page: the selected system (green), bar (blue), and note position (red) are each geometrically contained within the previous level.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{latex/figures/CODA.jpg}
+\caption{CODA tracking output on an MSMD score page.}
+\label{fig:tracking}
+\end{figure}
 
 Let $H_t = [h_{t-L+1}, \ldots, h_t] \in \mathbb{R}^{L \times d}$ denote the buffer of the most recent~$L$ Mamba hidden states, where $d$ is the hidden dimension of the Mamba encoder. For each candidate region~$r$ (a system or bar bounding box from the score layout metadata), let $f_r$ denote the extracted visual features for~$r$. The pipeline proceeds as follows.
 
@@ -268,9 +278,12 @@ in the 5\,s window after each jump).
 % TODO: fill in numbers after running experiments
 \begin{table}[h]
 \centering
-\caption{Jump recovery results on the repeat-aware jump-augmented MSMD test
-set. Rec.\ = fraction of jumps where the correct system is identified within
-the given time. CYOLO-SB has no recovery mechanism.}
+\caption{Jump recovery results on the repeat-aware jump-augmented MSMD test set. 
+\textbf{Rec.@$k$\,s}: fraction of jumps where the correct system is identified 
+within $k$ seconds after audio resumes. 
+\textbf{Lat.}: mean time in seconds from audio resumption to first correct system prediction. 
+\textbf{Post-J.}: fraction of onsets tracked within ${\leq}\,1.0$\,s in the 5\,s window 
+following each jump (standard tracking accuracy applied to post-jump segments).}
 \label{tab:jump}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
@@ -293,8 +306,7 @@ Subset & Method & @1\,s & @2\,s & (s) & ${\leq}$1\,s \\
 \end{tabular}
 \end{table}
  
-Table~\ref{tab:jump} shows the results. CYOLO-SB has no recovery mechanism and continues from its last committed position, yielding low recovery rates on both subsets. CODA without break mode also struggles because learned transition penalties resist large position changes. Enabling break mode substantially improves recovery by suppressing priors and widening the beam during detected silence. On the repeat subset, CODA recovers the correct system within 1\,s in 78\% of jumps. Recovery is higher on the repeat subset than the random subset (.78 vs.\ .64 at 1\,s), suggesting that returning to previously heard material provides stronger audio evidence for relocalization.
- 
+Table~\ref{tab:jump} shows the results. Without a jump-handling mechanism, CYOLO-SB yields low recovery rates across both subsets. CODA without break mode also struggles because learned transition penalties resist large position changes. CODA with break mode substantially improves recovery. On the repeat subset, CODA recovers the correct system within 1\,s in 78\% of jumps. Recovery is higher on the repeat subset than the random subset (.78 vs.\ .64 at 1\,s), indicating that random jumps are more difficult to handle than patterned written discontinuities.
 
 \subsection{Ablation Study}\label{sec:ablation}
 
@@ -324,9 +336,7 @@ w/o sched.\ sampling   & .888 & .906 & .951 & .978 & .968 & .989 \\
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:ablation} shows the results. Removing the cascade (\emph{w/o cascade}) replaces the three-stage hierarchy with independent heads over all candidates, matching CYOLO-SB's flat structure but retaining the Mamba encoder. Removing cross-attention (\emph{w/o cross-attention}) leaves only FiLM conditioning with~$z_t$, testing whether fine-grained audio attention helps beyond the frame-level summary. Removing beam search (\emph{w/o beam search}) uses greedy per-frame decoding without temporal priors. Removing only temporal priors (\emph{w/o temporal priors}) keeps the beam but sets all penalties to zero, isolating the effect of learned smoothing from multi-path tracking. Finally, removing scheduled sampling (\emph{w/o sched.\ sampling}) trains only Phase~1, creating a mismatch between ground-truth routing at training and predicted routing at inference.
- 
-The largest degradation comes from removing the cascade ($-.045$ at ${\leq}\,0.10$\,s, bar accuracy drops from .975 to .931), confirming that enforced geometric consistency is the most important component. Beam search and cross-attention contribute the next-largest gains ($-.026$ and $-.019$ at ${\leq}\,0.10$\,s, respectively).
+Table~\ref{tab:ablation} shows the results. The largest degradation comes from removing the cascade ($-.045$ at ${\leq}\,0.10$\,s, bar accuracy drops from .975 to .931), confirming that enforced geometric consistency is the most important component. Beam search and cross-attention contribute the next-largest gains ($-.026$ and $-.019$ at ${\leq}\,0.10$\,s, respectively). Scheduled sampling has the smallest individual effect, but remains necessary to close the train-inference routing gap.
 
 % \subsection{Latency and Throughput}\label{sec:latency}
 
