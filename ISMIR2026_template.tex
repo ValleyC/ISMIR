@@ -10,8 +10,11 @@
 
 \usepackage{amsmath,amssymb,cite,url}
 \usepackage{graphicx}
-\usepackage{color}
+\usepackage[table]{xcolor}
 \usepackage{booktabs,multirow}
+
+\definecolor{rowhl}{HTML}{E8F0FE}    % light blue for "ours" rows
+\definecolor{sechl}{HTML}{F0F0F0}    % subtle gray for section headers
 
 \usepackage{caption}
 \captionsetup{font=small}
@@ -230,28 +233,32 @@ from~\cite{henkel2021real}.}
 \label{tab:main}
 \footnotesize
 \setlength{\tabcolsep}{2.5pt}
-\begin{tabular}{l ccccc cc}
+\begin{tabular}{@{}l ccccc cc@{}}
 \toprule
-& \multicolumn{5}{c}{Error threshold (s)} & & \\
-\cmidrule(lr){2-6}
-& ${\leq}$.05 & ${\leq}$.10 & ${\leq}$.50 & ${\leq}$1.0 & ${\leq}$5.0 & Bar & Sys \\
+& \multicolumn{5}{c}{Onset error threshold (s)} & \multicolumn{2}{c}{Frame accuracy} \\
+\cmidrule(lr){2-6} \cmidrule(l){7-8}
+Method & ${\leq}$.05 & ${\leq}$.10 & ${\leq}$.50 & ${\leq}$1.0 & ${\leq}$5.0 & Bar & Sys \\
 \midrule
-\multicolumn{8}{l}{\textit{I: Synthetic images -- Synthetic audio}} \\[2pt]
+\rowcolor{sechl}
+\multicolumn{8}{@{}l}{\textit{Setting I\!: Synthetic images -- Synthetic audio}} \\
 MM-Loc~\cite{dorfer2016towards}       & .707 & .747 & .839 & .855 & .917 & --   & --   \\
-RL~\cite{henkel2019score}           & .411 & .435 & .776 & .856 & .971 & --   & --   \\
-CUNet~\cite{henkel2020learning}        & .726 & .750 & .855 & .885 & .937 & --   & --   \\
-CYOLO~\cite{henkel2021multi}        & .830 & .842 & .885 & .909 & .984 & --   & --   \\
-CYOLO-SB~\cite{henkel2021real}     & .820 & .837 & .893 & .912 & .983 & .890 & .963 \\
+RL~\cite{henkel2019score}             & .411 & .435 & .776 & .856 & .971 & --   & --   \\
+CUNet~\cite{henkel2020learning}       & .726 & .750 & .855 & .885 & .937 & --   & --   \\
+CYOLO~\cite{henkel2021multi}          & .830 & .842 & .885 & .909 & .984 & --   & --   \\
+CYOLO-SB~\cite{henkel2021real}        & .820 & .837 & .893 & .912 & .983 & .890 & .963 \\
 CYOLO-SB+A$^\dagger$~\cite{henkel2021real} & .846 & .861 & .908 & .927 & .984 & .892 & .956 \\
+\rowcolor{rowhl}
 CODA (ours)  & \textbf{.897} & \textbf{.914} & \textbf{.955} & \textbf{.981} & \textbf{.996} & \textbf{.975} & \textbf{.991} \\
 \midrule
-\multicolumn{8}{l}{\textit{II: Synthetic images -- Real audio recordings}} \\[2pt]
+\rowcolor{sechl}
+\multicolumn{8}{@{}l}{\textit{Setting II\!: Synthetic images -- Real audio recordings}} \\
 MM-Loc~\cite{dorfer2016towards}       & .364 & .406 & .585 & .611 & .735 & --   & --   \\
-RL~\cite{henkel2019score}           & .185 & .200 & .476 & .603 & .901 & --   & --   \\
-CUNet~\cite{henkel2020learning}        & .113 & .125 & .224 & .266 & .443 & --   & --   \\
-CYOLO~\cite{henkel2021multi}        & .563 & .581 & .712 & .749 & .919 & --   & --   \\
-CYOLO-SB~\cite{henkel2021real}     & .610 & .630 & .799 & .832 & .960 & .829 & .917 \\
+RL~\cite{henkel2019score}             & .185 & .200 & .476 & .603 & .901 & --   & --   \\
+CUNet~\cite{henkel2020learning}       & .113 & .125 & .224 & .266 & .443 & --   & --   \\
+CYOLO~\cite{henkel2021multi}          & .563 & .581 & .712 & .749 & .919 & --   & --   \\
+CYOLO-SB~\cite{henkel2021real}        & .610 & .630 & .799 & .832 & .960 & .829 & .917 \\
 CYOLO-SB+A$^\dagger$~\cite{henkel2021real} & .682 & .706 & .865 & .891 & .981 & .865 & .941 \\
+\rowcolor{rowhl}
 CODA (ours)  & \textbf{.721} & \textbf{.743} & \textbf{.883} & \textbf{.914} & \textbf{.987} & \textbf{.891} & \textbf{.953} \\
 \bottomrule
 \end{tabular}
@@ -277,29 +284,31 @@ in the 5\,s window after each jump).
 % TODO: fill in numbers after running experiments
 \begin{table}[h]
 \centering
-\caption{Jump recovery results on the repeat-aware jump-augmented MSMD test set. 
-\textbf{Rec.@$k$\,s}: fraction of jumps where the correct system is identified 
-within $k$ seconds after audio resumes. 
-\textbf{Lat.}: mean time in seconds from audio resumption to first correct system prediction. 
-\textbf{Post-J.}: fraction of onsets tracked within ${\leq}\,1.0$\,s in the 5\,s window 
+\caption{Jump recovery results on the repeat-aware jump-augmented MSMD test set.
+\textbf{Rec.@$k$\,s}: fraction of jumps where the correct system is identified
+within $k$ seconds after audio resumes.
+\textbf{Lat.}: mean time in seconds from audio resumption to first correct system prediction.
+\textbf{Post-J.}: fraction of onsets tracked within ${\leq}\,1.0$\,s in the 5\,s window
 following each jump (standard tracking accuracy applied to post-jump segments).}
 \label{tab:jump}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{l l cc cc}
+\begin{tabular}{@{}ll cc c c@{}}
 \toprule
-& & \multicolumn{2}{c}{Sys Rec.} & Lat. & Post-J. \\
+& & \multicolumn{2}{c}{Sys recovery} & & Post-jump \\
 \cmidrule(lr){3-4}
-Subset & Method & @1\,s & @2\,s & (s) & ${\leq}$1\,s \\
+Subset & Method & @1\,s & @2\,s & Lat.\,(s) & ${\leq}$1\,s \\
 \midrule
 \multirow{3}{*}{Repeat}
  & CYOLO-SB       & .12   & .20   & 4.31   & .35 \\
  & CODA w/o break & .29   & .44   & 2.63   & .54 \\
+\rowcolor{rowhl}
  & CODA (full)    & \textbf{.78} & \textbf{.91} & \textbf{0.72} & \textbf{.82} \\
 \midrule
 \multirow{3}{*}{Random}
  & CYOLO-SB       & .08   & .15   & 5.18   & .27 \\
  & CODA w/o break & .23   & .38   & 3.07   & .46 \\
+\rowcolor{rowhl}
  & CODA (full)    & \textbf{.64} & \textbf{.80} & \textbf{1.24} & \textbf{.71} \\
 \bottomrule
 \end{tabular}
@@ -318,13 +327,14 @@ removes one component from the full model.}
 \label{tab:ablation}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{l cccc cc}
+\begin{tabular}{@{}l cccc cc@{}}
 \toprule
-& \multicolumn{4}{c}{Error threshold (s)} & & \\
-\cmidrule(lr){2-5}
+& \multicolumn{4}{c}{Onset error threshold (s)} & \multicolumn{2}{c}{Frame accuracy} \\
+\cmidrule(lr){2-5} \cmidrule(l){6-7}
 Variant & ${\leq}$.05 & ${\leq}$.10 & ${\leq}$.50 & ${\leq}$1.0 & Bar & Sys \\
 \midrule
-CODA (full)            & .897 & .914 & .955 & .981 & .975 & .991 \\
+\rowcolor{rowhl}
+CODA (full)            & \textbf{.897} & \textbf{.914} & \textbf{.955} & \textbf{.981} & \textbf{.975} & \textbf{.991} \\
 \midrule
 w/o cascade            & .851 & .869 & .923 & .952 & .931 & .967 \\
 w/o cross-attention    & .878 & .895 & .943 & .972 & .958 & .985 \\
