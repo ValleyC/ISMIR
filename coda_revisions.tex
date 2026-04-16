@@ -1,0 +1,207 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{CODA --- Suggested Revisions}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Abstract}
+
+\subsection*{Architecture Description (Lines 22--26)}
+
+\textbf{Original:}
+\begin{quote}
+CODA's architecture combines a visual encoder with a causal Mamba state-space audio encoder.
+Candidate positions are scored using audio-conditioned modulation and cross-attention, and decoded
+using beam search with learned transition penalties.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+CODA combines a CNN visual backbone with a causal Mamba audio encoder.
+At each frame, visual features of candidate regions are extracted and modulated by audio context
+via FiLM conditioning and cross-attention over recent audio history.
+The resulting scores are decoded over time using beam search with learned temporal transition priors.
+\end{quote}
+
+\textbf{Rationale:}
+\begin{itemize}
+    \item Specifies ``CNN visual backbone'' rather than the vague ``visual encoder'', giving the two encoders symmetric descriptive weight.
+    \item Separates the encode $\to$ score $\to$ decode logic into three sentences with a clear causal chain.
+    \item Distinguishes FiLM (frame-level global conditioning) and cross-attention (fine-grained temporal attention) as sequential rather than parallel operations.
+    \item Adds ``temporal'' to ``transition priors'' to clarify that the learned penalties encode smoothness over time.
+\end{itemize}
+
+
+\section*{Introduction}
+
+\subsection*{Item 2: ``recently emerged'' (Line 43)}
+
+\textbf{Original:}
+\begin{quote}
+Image-based score following has recently emerged by working directly on sheet images.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+Image-based score following has emerged over the past decade by working directly on sheet images.
+\end{quote}
+
+\textbf{Rationale:}
+``Recently'' is imprecise given that the earliest image-based work dates to 2016. ``Over the past decade'' is factually accurate while still conveying that the field is younger than symbolic score following, which has a history of several decades.
+
+\subsection*{Item 3: Two senses of ``recovery'' (Lines 48--50)}
+
+\textbf{Original:}
+\begin{quote}
+Reinforcement-learning methods widened the view to score strips but still operated on narrow windows, making recovery difficult when the agent drifted off track [7, 8].
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+Reinforcement-learning methods widened the view to score strips but still operated on narrow windows, making re-engagement difficult when the agent drifted off track [7, 8].
+\end{quote}
+
+\textbf{Rationale:}
+The word ``recovery'' appears twice in the Introduction with different meanings: once for tracking drift (here) and once for jump recovery after a score discontinuity. Replacing ``recovery'' with ``re-engagement'' in this sentence removes the ambiguity without requiring any additional explanation.
+
+\subsection*{Item 6: ``detection is unnecessary'' missing premise (Lines 73--80)}
+
+\textbf{Original:}
+\begin{quote}
+However, in music performances, the score is static, and all candidate positions are known in advance. Detection is therefore unnecessary. The real task is to select which of the known candidates is currently being played.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+However, in music performances, the score is static, and all candidate positions are known in advance. Detection is therefore unnecessary. The real task is to select which of the known candidates is currently being played, a formulation that is feasible whenever score layout information is available.
+\end{quote}
+
+\textbf{Rationale:}
+The claim that detection is unnecessary rests on the assumption that layout metadata (system and bar bounding boxes) is available for the score page. This premise is stated in Section 3.1 but not in the Introduction. Adding the qualifying clause makes the argument honest and pre-empts reviewer questions about cases where layout information is absent.
+
+\subsection*{Item 7: Benchmark contribution separated into its own bullet (Lines 109--112)}
+
+\textbf{Original:}
+\begin{quote}
+A silence-driven jump recovery mechanism for arbitrary score discontinuities, evaluated on a repeat-aware jump test benchmark that we contribute for the MSMD test set.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+A silence-driven jump recovery mechanism for arbitrary score discontinuities, including repeats, D.C., and coda jumps, without requiring prior knowledge of the score's repeat structure.
+
+A repeat-aware jump test benchmark with manually annotated repeat structures for all 94 pieces in the MSMD test set, providing the first standardized evaluation protocol for discontinuity handling in image-based score following.
+\end{quote}
+
+\textbf{Rationale:}
+The benchmark is an independent contribution that required substantial manual annotation effort. Merging it into the same bullet as the recovery mechanism undersells its value. Separating them gives each contribution its own visible presence in the list.
+
+\subsection*{Item 8: Paragraph 4 expansion to give jump recovery appropriate weight (Lines 81--85)}
+
+\textbf{Original:}
+\begin{quote}
+Additionally, existing image-based methods lack mechanisms to recover from score discontinuities such as repeats, D.C., or coda jumps, even though such events are common in practice and have long been addressed in symbolic score following [5, 11, 12].
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+Additionally, existing image-based methods lack mechanisms to recover from score discontinuities such as repeats, D.C., or coda jumps, even though such events are common in practice and have long been addressed in symbolic score following [5, 11, 12]. In our analysis of the MSMD test set, 66 out of 94 pieces contain written repeat structures, producing 131 jumps in standard performance order. Surprisingly, no existing real-time image-based score following method includes an explicit mechanism for handling such events during online tracking.
+\end{quote}
+
+\textbf{Rationale:}
+The current single sentence gives jump recovery far less introductory weight than the cascaded selection problem, despite both being listed as major contributions. Adding two sentences with a concrete statistic from the benchmark and a direct statement of the gap in the literature raises the perceived importance of this contribution to match its presence in the paper.
+
+
+\section*{Related Work}
+
+\subsection*{RW Item 3: Emphasize Nakamura's silent breaks observation (Lines 125--128)}
+
+\textbf{Original:}
+\begin{quote}
+Nakamura et al. [5] modeled repeats and skips with an explicit transition structure and observed that the majority of real-world score jumps are preceded by short silent breaks.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+Nakamura et al. [5] modeled repeats and skips with an explicit transition structure. Their analysis further revealed that the majority of real-world score jumps are preceded by short silent breaks, an observation that motivates the jump recovery design in Section 3.6.
+\end{quote}
+
+\textbf{Rationale:}
+This observation is the empirical foundation for CODA's entire break mode mechanism. In the original text, it is buried in the second half of a compound sentence and easy to overlook. Splitting it into its own sentence and adding a forward reference to Section 3.6 gives the observation standalone visibility and lets the reader know it will be used later, without over-explaining.
+
+\subsection*{RW Item 4: Reorder Section 2.1 for narrative coherence (Lines 115--137)}
+
+\textbf{Original order:}
+\begin{enumerate}
+    \item Online DTW (Dixon [3])
+    \item Probabilistic state-space models (Cont [4], Arzt and Widmer [13])
+    \item Particle filters (Korzeniowski et al. [14])
+    \item Repeats and skips (Nakamura et al. [5])
+    \item Tempo tracking (Jiang and Raphael [15])
+    \item AMT front end (Peter et al. [16])
+    \item Evaluation framework (Matchmaker [12])
+\end{enumerate}
+
+\textbf{Suggested order:}
+\begin{enumerate}
+    \item Online DTW (Dixon [3])
+    \item Probabilistic state-space models (Cont [4], Arzt and Widmer [13])
+    \item Particle filters (Korzeniowski et al. [14])
+    \item Tempo tracking (Jiang and Raphael [15])
+    \item Repeats and skips (Nakamura et al. [5])
+    \item AMT front end (Peter et al. [16])
+    \item Evaluation framework (Matchmaker [12])
+\end{enumerate}
+
+\textbf{Rationale:}
+In the original order, Jiang and Raphael (tempo tracking) appears after Nakamura (repeats and skips), which breaks the thematic flow. Items 1 through 4 in the suggested order all address improving tracking under normal performance conditions (tempo, rests, expressive variation). Item 5 then shifts to structural discontinuities, forming a natural thematic transition toward Section 2.3. Items 6 and 7 close with the most recent method and the evaluation framework.
+
+\subsection*{RW Item 6: Replace ``systematized'' (Line 134)}
+
+\textbf{Original:}
+\begin{quote}
+Matchmaker [12] has systematized evaluation of symbolic methods into an open-source benchmarking framework, though it does not cover image-based trackers.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+Matchmaker [12] provides a systematic evaluation framework for symbolic methods, though it does not cover image-based trackers.
+\end{quote}
+
+\textbf{Rationale:}
+``Systematized'' is uncommon and slightly awkward. ``Provides a systematic evaluation framework'' conveys the same meaning in more natural academic English.
+
+\subsection*{RW Item 8: Precision of CYOLO temporal independence claim (Lines 151--153)}
+
+\textbf{Original:}
+\begin{quote}
+However, the three heads predict in parallel without cross-level constraints, each frame is decoded independently of the previous one, and no recovery mechanism exists for when tracking is lost.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+However, the three heads predict in parallel without cross-level constraints, predictions at each frame are decoded without temporal consistency constraints across frames, and no recovery mechanism exists for when tracking is lost.
+\end{quote}
+
+\textbf{Rationale:}
+CYOLO uses an LSTM to process the audio sequence, which does provide temporal context at the audio encoding level. The original phrasing ``each frame is decoded independently of the previous one'' could be read as claiming that CYOLO has no temporal memory at all, which is inaccurate. The revised phrasing makes the criticism precise: what CYOLO lacks is not temporal audio context but temporal consistency constraints at the prediction output level. That is, the predicted system, bar, and note at frame $t$ are not constrained by the predictions at frame $t{-}1$. This is the specific gap that CODA's beam search and learned temporal priors address.
+
+\subsection*{[For Section 4.1.3 Baselines] RW Item 5: Peter et al. not directly comparable}
+
+\textit{Note: this revision belongs in Section 4.1.3 (Baselines), not in Related Work. It is recorded here for now and should be moved when we review the Experiments section.}
+
+\textbf{Suggested addition at the end of Section 4.1.3:}
+\begin{quote}
+Methods that rely on automatic music transcription as a front end, such as Peter et al. [16], are not directly comparable because they depend on symbolic-level intermediate representations rather than operating on sheet images.
+\end{quote}
+
+\textbf{Rationale:}
+Peter et al. [16] is cited in Section 2.1 as a recent strong result in symbolic score following. Reviewers familiar with this work may wonder why it does not appear in Table 1. A brief sentence in the Baselines subsection clarifies that the comparison is limited to image-based methods and that transcription-based approaches fall outside this scope.
+
+\end{document}
+
