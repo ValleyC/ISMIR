@@ -69,6 +69,21 @@ Reinforcement-learning methods widened the view to score strips but still operat
 \textbf{Rationale:}
 The word ``recovery'' appears twice in the Introduction with different meanings: once for tracking drift (here) and once for jump recovery after a score discontinuity. Replacing ``recovery'' with ``re-engagement'' in this sentence removes the ambiguity without requiring any additional explanation.
 
+\subsection*{Item 4: Contribution bullet alignment with Method (Lines 56--60)}
+
+\textbf{Original:}
+\begin{quote}
+A cascaded selection formulation that enforces geometric consistency across system, bar, and note predictions while narrowing the search space at each stage.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+A cascaded selection-and-regression formulation that enforces geometric consistency across system, bar, and note predictions while narrowing the search space at each stage.
+\end{quote}
+
+\textbf{Rationale:}
+In Section 3, the system and bar stages are selection tasks (classification over known candidates) while the note stage is a continuous regression of bar-local coordinates. Framing all three stages as ``selection'' in the contribution list blurs the distinction between classification and regression and does not match the Method section, where the note head is introduced as a sigmoid regressor. Replacing ``selection'' with ``selection-and-regression'' aligns the Introduction with the Method and pre-empts reader confusion when they reach Section 3.3.
+
 \subsection*{Item 6: ``detection is unnecessary'' missing premise (Lines 73--80)}
 
 \textbf{Original:}
@@ -191,9 +206,44 @@ However, the three heads predict in parallel without cross-level constraints, pr
 \textbf{Rationale:}
 CYOLO uses an LSTM to process the audio sequence, which does provide temporal context at the audio encoding level. The original phrasing ``each frame is decoded independently of the previous one'' could be read as claiming that CYOLO has no temporal memory at all, which is inaccurate. The revised phrasing makes the criticism precise: what CYOLO lacks is not temporal audio context but temporal consistency constraints at the prediction output level. That is, the predicted system, bar, and note at frame $t$ are not constrained by the predictions at frame $t{-}1$. This is the specific gap that CODA's beam search and learned temporal priors address.
 
-\subsection*{[For Section 4.1.3 Baselines] RW Item 5: Peter et al. not directly comparable}
+\section*{Method}
 
-\textit{Note: this revision belongs in Section 4.1.3 (Baselines), not in Related Work. It is recorded here for now and should be moved when we review the Experiments section.}
+\subsection*{Item 1: ``inherently'' $\to$ ``by construction'' (Line 96)}
+
+\textbf{Original:}
+\begin{quote}
+This cascaded factorization inherently enforces valid geometric structure: the predicted bar always lies within the predicted system, and the predicted note always lies within the predicted bar.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+This cascaded factorization enforces valid geometric structure by construction: the predicted bar always lies within the predicted system, and the predicted note always lies within the predicted bar.
+\end{quote}
+
+\textbf{Rationale:}
+``Inherently'' suggests an intrinsic property without specifying its source. The geometric guarantee actually comes from restricting each stage's candidate set based on the previous stage's prediction, which is an architectural design choice. ``By construction'' names the source of the guarantee more precisely and contrasts more sharply with the criticism of CYOLO in Section 2.2, where the model is said to ``implicitly'' learn structural consistency. The revision also pre-empts reviewer questions about whether ``inherently'' refers to a mathematical property or an implementation choice.
+
+
+\section*{Experiments}
+
+\subsection*{Item 1: Clarify layout metadata source (Line 189, Section 4.1.1)}
+
+\textbf{Original:}
+\begin{quote}
+Training and evaluation are both based on the MSMD dataset [18], using the preprocessed version provided by Henkel and Widmer [10], in which each piece is stored as a score image with per-note coordinate annotations and a paired synthesized audio file (22,050 Hz).
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+Training and evaluation are both based on the MSMD dataset [18], using the preprocessed version provided by Henkel and Widmer [10], in which each piece is stored as a score image with per-note coordinate annotations and per-system and per-bar bounding box annotations, paired with a synthesized audio file (22,050 Hz).
+\end{quote}
+
+\textbf{Rationale:}
+Section 3.1 and Section 3.3 refer to ``layout metadata'' (system and bar bounding boxes) as a precondition for CODA's selection formulation, but the Dataset description currently only mentions per-note coordinate annotations. Without this addition, readers may assume the system and bar boxes come from an external OMR module or from proprietary annotations, which would raise unwarranted concerns about the method's applicability. Spelling out that the boxes are part of the MSMD distribution closes this gap and matches the actual preconditions of the method.
+
+\subsection*{Item 2: Peter et al. not directly comparable (Section 4.1.3 Baselines)}
+
+\textit{Note: originally recorded as ``RW Item 5'' during the Related Work pass; relocated here now that the Experiments section has its own heading.}
 
 \textbf{Suggested addition at the end of Section 4.1.3:}
 \begin{quote}
