@@ -57,7 +57,7 @@ Additionally, existing image-based methods lack mechanisms to recover from score
 
 This paper proposes CODA, a cascaded online alignment framework that addresses these gaps. The key observation is that on a fixed score page, all system and bar locations are already known. The tracking problem is therefore reformulated as a selection task among known candidates. CODA follows the cascaded structure of music scores directly: it first selects the active system among all systems, then the active bar within that selected system, and finally the note position inside the selected bar. This formulation naturally enforces geometric consistency and narrows the search space at each stage. To handle score discontinuities, CODA models all jumps as arbitrary position changes preceded by silence, enabling a single recovery mechanism that generalizes across repeats, D.C., coda jumps, and performer errors without requiring knowledge of the score's repeat structure. The major contributions are:
 \begin{itemize}
-\item A cascaded selection formulation that enforces geometric consistency across system, bar, and note predictions while narrowing the search space at each stage.
+\item A cascaded selection-and-regression formulation that enforces geometric consistency across system, bar, and note predictions while narrowing the search space at each stage.
 \item A causal streaming architecture combining Mamba audio encoding, FiLM conditioning, cross-attention, and beam search with learned temporal priors.
 \item A silence-driven jump recovery mechanism for arbitrary score discontinuities, including repeats, D.C., and coda jumps, without requiring prior knowledge of the score's repeat structure.
 \item A repeat-aware jump test benchmark with manually annotated repeat structures for all 94 pieces in the MSMD test set, providing the first standardized evaluation protocol for discontinuity handling in image-based score following.
@@ -75,7 +75,7 @@ Dorfer et al.\ \cite{dorfer2016towards} first showed that a multimodal convoluti
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/overview.pdf}
-\caption{Overview of the CODA architecture. A shared CNN visual backbone and a causal Mamba audio encoder are used to feed into three cascaded stages: system selection, bar selection, and note localization. Beam search with learned temporal priors decodes the cascade over time.}
+\caption{Overview of the CODA architecture. A causal Mamba audio encoder and a shared CNN visual backbone feed into three cascaded stages: system selection, bar selection, and note localization. Beam search with learned temporal priors decodes the cascade over time.}
 \label{fig:overview}
 \end{figure*}
 \subsection{Handling Repeats and Jumps}
@@ -94,19 +94,19 @@ p(s_t, b_t, u_t \mid h_t) = {} & p(s_t \mid h_t) \cdot p(b_t \mid s_t, h_t) \\
 & \cdot\; p(u_t \mid b_t, s_t, h_t).
 \end{split}
 \end{equation}
-This cascaded factorization inherently enforces valid geometric structure: the predicted bar always lies within the predicted system, and the predicted note always lies within the predicted bar. It also reduces the decision space stage by stage, which is especially helpful in repetitive passages that contain similar content across multiple systems or bars.
+This cascaded factorization enforces valid geometric structure by construction: the predicted bar always lies within the predicted system, and the predicted note always lies within the predicted bar. It also reduces the decision space stage by stage, which is especially helpful in repetitive passages that contain similar content across multiple systems or bars.
 
 \subsection{Model Architecture}
 
 Figure~\ref{fig:overview} illustrates CODA's overall architecture. CODA has two input streams: audio and visual.
  
-The audio stream is converted into a 78-dimensional log-filterbank at 20~frames per second. A two-layer causal Mamba encoder~\cite{gu2024mamba} processes each frame, producing a global conditioning vector~$z_t$ and a buffer of recent hidden states~$H_t$. $z_t$ summarizes the audio context up to frame~$t$, while $H_t$ serves as the key and value source for cross-attention (Eq.~\ref{eq:crossattn}).
+The audio stream is converted into a 78-dimensional log-filterbank at 20~frames per second. A two-layer causal Mamba encoder~\cite{gu2024mamba} processes each frame. Its recurrent state compactly accumulates the entire audio history up to frame~$t$, yielding a conditioning vector~$z_t$. In parallel, a sliding window $H_t$ of the most recent $L$ per-frame outputs is maintained. $z_t$ provides conditioning for the visual feature map (Eq.~\ref{eq:film}), while $H_t$ serves as the key and value source for cross-attention (Eq.~\ref{eq:crossattn}).
  
-The score page image is processed by a CNN backbone with FiLM conditioning at deeper stages. The output of the CNN backbone is further processed by a Feature Pyramid Network (FPN) that produces a single stride-8 feature map~$F$. This feature map is shared across all three cascade stages in the selection process.
+The score page image is processed by a CNN backbone with FiLM conditioning driven by~$z_t$ at deeper stages. The output of the CNN backbone is further processed by a Feature Pyramid Network (FPN) that produces a stride-8 feature map~$F$ (i.e., at one-eighth the spatial resolution of the input). This feature map is shared across all three cascade stages.
 
 \subsection{Cascaded Selection}
 
-Given the shared stride-8 feature map~$F$ from the visual input stream and the Mamba encoder outputs from the audio input stream, CODA applies three cascaded stages to localize the active position on the score page. Each stage narrows the spatial scope before proceeding to the next stage. All three stages share the same processing pipeline, which we describe below. Figure~\ref{fig:tracking} illustrates the output on a real score page: the selected system (green), bar (blue), and note position (red) are each geometrically contained within the previous level.
+Given the shared stride-8 feature map~$F$ from the visual input stream and the Mamba encoder outputs from the audio input stream, CODA applies three cascaded stages to localize the active position on the score page. Each stage narrows the spatial scope before proceeding to the next stage. All three stages share a common processing pipeline, with stage-specific variations detailed below. Figure~\ref{fig:tracking} illustrates the output on a real score page: the selected system (green), bar (blue), and note position (red) are each geometrically contained within the previous level.
 
 \begin{figure}[h]
 \centering
@@ -115,13 +115,13 @@ Given the shared stride-8 feature map~$F$ from the visual input stream and the M
 \label{fig:tracking}
 \end{figure}
 
-Let $H_t = [h_{t-L+1}, \ldots, h_t] \in \mathbb{R}^{L \times d}$ denote the buffer of the most recent~$L$ Mamba hidden states, where $d$ is the hidden dimension of the Mamba encoder. For each candidate region~$r$ (a system or bar bounding box from the score layout metadata), let $f_r$ denote the extracted visual features for~$r$. The pipeline proceeds as follows.
+Recall that $H_t \in \mathbb{R}^{L \times d}$ is the sliding window of the most recent $L$ Mamba outputs, with $d$ the hidden dimension of the encoder. For each candidate region~$r$ (a system or bar bounding box from the score layout metadata), the pipeline proceeds as follows.
 
-First, Region of Interest (ROI) Align \cite{he2017mask} extracts a fixed-size feature patch from the stride-8 feature map (i.e., at one-eighth the spatial resolution of the input):
+First, Region of Interest (ROI) Align \cite{he2017mask} extracts a fixed-size feature patch $f_r$ from the stride-8 feature map:
 \begin{equation}\label{eq:roi}
 f_r = \mathrm{ROIAlign}(F,\, r).
 \end{equation}
-The extracted features $f_r$ are then modulated by the global audio vector~$z_t$ via Feature-wise Linear Modulation (FiLM) \cite{perez2018film}:
+The extracted features $f_r$ are then modulated by the audio vector~$z_t$ via Feature-wise Linear Modulation (FiLM) \cite{perez2018film}:
 \begin{equation}\label{eq:film}
 \tilde{f}_r = \gamma(z_t) \odot f_r + \beta(z_t),
 \end{equation}
@@ -131,11 +131,11 @@ where $\gamma$ and $\beta$ are learned linear projections and $\odot$ denotes el
 \end{equation}
 In the system and bar stages, the convolved features are refined by scaled dot-product cross-attention \cite{vaswani2017attention} over the audio buffer. The queries are formed by spatially flattening~$\hat{f}_r$, while the keys and values are shared projections of the hidden-state buffer~$H_t$:
 \begin{equation}\label{eq:crossattn}
-\bar{f}_r = \mathrm{softmax}\!\left(\frac{\mathrm{flat}(\hat{f}_r)\,(W_a H_t)^\top}{\sqrt{d}}\right) W_a H_t,
+\bar{f}_r = \mathrm{softmax}\!\left(\frac{\mathrm{flat}(\hat{f}_r)\,(W_a H_t)^\top}{\sqrt{C}}\right) W_a H_t,
 \end{equation}
-where $W_a$ is a learned linear projection. This cross-attention lets each candidate region attend to fine-grained temporal patterns in the recent audio history.
+where $W_a$ is a learned linear projection onto the $C$-dimensional attention space shared with~$\hat{f}_r$. This cross-attention lets each candidate region attend to fine-grained temporal patterns in the recent audio history.
 
-The system stage applies Eqs.~\ref{eq:roi}--\ref{eq:crossattn} to every system candidate on the page, producing~$\log p(s_t \mid h_t)$ via adaptive average pooling and a linear classifier. The bar stage applies the same pipeline with independent parameters to the bars within the selected system, yielding~$\log p(b_t \mid s_t, h_t)$. The note stage uses only Eqs.~\ref{eq:roi}--\ref{eq:conv} (no cross-attention because the search space is small enough) on the selected bar and regresses bar-local coordinates~$u_t = (c_x, c_y) \in [0,1]^2$ via sigmoid activation.
+The system stage applies Eqs.~\ref{eq:roi}--\ref{eq:crossattn} to every system candidate on the page, producing~$\log p(s_t \mid h_t)$ via adaptive average pooling, a linear classifier, and softmax normalization. The bar stage applies the same pipeline with independent parameters to the bars within the selected system, yielding~$\log p(b_t \mid s_t, h_t)$. The note stage uses only Eqs.~\ref{eq:roi}--\ref{eq:conv} (no cross-attention at this stage) on the selected bar and regresses bar-local coordinates~$u_t = (c_x, c_y) \in [0,1]^2$ via sigmoid activation.
 
 \subsection{Beam Search and Temporal Priors}
 
@@ -187,7 +187,7 @@ At inference, \emph{break mode} monitors waveform energy with a hysteresis rule.
 \subsection{Experimental Setup}\label{sec:setup}
  
 \subsubsection{Dataset.}
-Training and evaluation are both based on the MSMD dataset~\cite{dorfer2018learning}, using the preprocessed version provided by Henkel and Widmer~\cite{henkel2021real}, in which each piece is stored as a score image with per-note coordinate annotations and a paired synthesized audio file (22,050~Hz). The standard split contains 354 training, 19 validation, and 94 test pieces.
+Training and evaluation are both based on the MSMD dataset~\cite{dorfer2018learning}, using the preprocessed version provided by Henkel and Widmer~\cite{henkel2021real}, in which each piece is stored as a score image with per-note coordinate annotations and per-system and per-bar bounding box annotations, paired with a synthesized audio file (22,050~Hz). The standard split contains 354 training, 19 validation, and 94 test pieces.
  
 \subsubsection{Evaluation protocol.}
 We consider two evaluation settings matching~\cite{henkel2021real}: 
