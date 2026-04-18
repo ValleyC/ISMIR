@@ -487,6 +487,78 @@ Delete ``let $f_r$ denote the extracted visual features for~$r$'' from Line 118,
 \textbf{Rationale:}
 The original structure forward-declares $f_r$ (``let $f_r$ denote \ldots'') before defining how it is extracted, then defines extraction via Eq.~\ref{eq:roi} one sentence later. Introducing $f_r$ directly at the point of extraction eliminates the forward declaration, saves one sentence, and keeps the prose in the paper's prevailing third-person, impersonal voice (avoiding first-person alternatives such as ``we extract $f_r$ \ldots'').
 
+\subsection*{Item 15: \emph{Code change only} --- evaluate the note head only on the winning beam path (Section~3.4, Lines 144 and 155)}
+
+\textit{Status: Adopted as a code change. The paper text in Section~3.4 (``The note head is evaluated only on the winning system--bar pair after the beam has been resolved'' and ``The note head then regresses the note position $\hat{u}_t$ \ldots'') is kept as-is; the implementation will be updated to match it.}
+
+\textbf{Paper claim (unchanged):}
+Section~3.4 states that the note head is evaluated only on the winning (system, bar) pair after beam resolution.
+
+\textbf{Current code behaviour (out of sync):}
+In \texttt{coda/models/coda\_model.py}, \texttt{inference\_forward()} evaluates the note head \emph{inside} the inner beam loop, i.e.\ for every one of the $k \times m$ beam paths, even though the note output does not contribute to \texttt{joint\_score}. The winning path's note output is the only one returned; the other evaluations are discarded.
+
+\textbf{Proposed code change (sketch):}
+In the inner beam loop, drop the note-head call and the note-coordinate mapping. Instead, stash the bar ROI on each \texttt{paths} entry so that the note head can be invoked once after the beam has resolved. The relevant rewrite inside \texttt{inference\_forward()} (around lines 616--655 of the current file) is:
+\begin{quote}\small\ttfamily
+for bi in range(m):\\
+\hspace*{1em}bar\_local = top\_bar\_local\_idx[bi].item()\\
+\hspace*{1em}bar\_page\_idx = bar\_indices[bar\_local]\\
+\hspace*{1em}bar\_score = top\_bar\_lp[bi].item()\\
+\hspace*{1em}bar\_tp = self.\_bar\_temporal\_prior(bar\_page\_idx)\\
+\hspace*{1em}if self.\_break\_mode\_active:\\
+\hspace*{2em}bar\_tp *= self.break\_prior\_scale\\[4pt]
+\hspace*{1em}joint\_score = sys\_lp + sys\_tp + bar\_score + bar\_tp\\[4pt]
+\hspace*{1em}paths.append(\{\\
+\hspace*{2em}'system\_idx': sys\_i,\\
+\hspace*{2em}'bar\_page\_idx': bar\_page\_idx,\\
+\hspace*{2em}'bar\_local\_idx': bar\_local,\\
+\hspace*{2em}'bar\_roi': bar\_rois[bar\_local].unsqueeze(0),\\
+\hspace*{2em}'score': joint\_score,\\
+\hspace*{2em}'sys\_lp': sys\_lp,\\
+\hspace*{2em}'bar\_lp': bar\_score,\\
+\hspace*{1em}\})\\[6pt]
+\# After the two nested loops:\\
+if not paths:\\
+\hspace*{1em}return None\\[4pt]
+best = max(paths, key=lambda p: p['score'])\\[4pt]
+\# Evaluate note head only on the winning path\\
+note\_pos, \_ = self.note\_head(p3, best['bar\_roi'], z,\\
+\hspace*{6em}spatial\_scale=spatial\_scale)\\
+note\_cx, note\_cy = note\_pos[0].tolist()\\
+bar\_box = bar\_boxes\_xywh[best['bar\_page\_idx']]\\
+bar\_x1 = (bar\_box[0] - bar\_box[2] / 2).item()\\
+bar\_y1 = (bar\_box[1] - bar\_box[3] / 2).item()\\
+bar\_w = bar\_box[2].item()\\
+bar\_h = bar\_box[3].item()\\
+best['note\_cx'] = note\_cx\\
+best['note\_cy'] = note\_cy\\
+best['page\_x'] = bar\_x1 + note\_cx * bar\_w\\
+best['page\_y'] = bar\_y1 + note\_cy * bar\_h
+\end{quote}
+
+\textbf{Downstream check:}
+Consumers of \texttt{inference\_forward()} (e.g.\ \texttt{streaming\_eval.py}, \texttt{scripts/evaluate.py}) currently access \texttt{result['best\_path']}'s \texttt{system\_idx}, \texttt{bar\_page\_idx}, and \texttt{result['note\_page\_x']} / \texttt{['note\_page\_y']}. All of these remain populated on the winning path under the proposed change. Non-winning entries of \texttt{all\_paths} will no longer carry note fields; any code path that reads note fields from non-winning entries (if any) must be updated. No such consumer was identified in \texttt{streaming\_eval.py}.
+
+\textbf{Rationale:}
+Two benefits. First, the paper's description becomes truthful against the implementation --- the note head is actually evaluated only on the winning path, not on every beam path. Second, inference saves $k \times m - 1$ note-head invocations per frame (a small but non-zero efficiency gain: each saved invocation is one ROI-align plus a short FC stack). The change is local to \texttt{inference\_forward()} and does not affect training.
+
+\subsection*{Item 16: Drop ``forward progression'' from the temporal-prior description (Line 153)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+This parameterization biases the tracker toward smooth temporal progression by encouraging forward progression and penalizing large jumps.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+This parameterization biases the tracker toward smooth temporal progression by encouraging smooth transitions and penalizing large jumps.
+\end{quote}
+
+\textbf{Rationale:}
+``Encouraging forward progression'' implies a directional bias, which is accurate for the bar-level priors (\texttt{forward\_1}, \texttt{forward\_2}, and \texttt{backward\_1} are distinct categories and can learn different penalties) but not for the system-level priors. System-level priors in the current implementation treat transitions symmetrically by unsigned distance (\texttt{same}, \texttt{adjacent}, \texttt{far}): a move from system $s$ to system $s+1$ and a move from $s$ to $s-1$ incur the same penalty. Replacing ``forward progression'' with ``smooth transitions'' covers both the directional bar-level bias and the symmetric system-level bias without overclaiming. This avoids a reviewer question on why system priors are symmetric despite the language suggesting otherwise, and leaves the option of adding directional system priors to Discussion/Future Work if desired.
+
 
 \section*{Experiments}
 
