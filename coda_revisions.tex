@@ -559,6 +559,51 @@ This parameterization biases the tracker toward smooth temporal progression by e
 \textbf{Rationale:}
 ``Encouraging forward progression'' implies a directional bias, which is accurate for the bar-level priors (\texttt{forward\_1}, \texttt{forward\_2}, and \texttt{backward\_1} are distinct categories and can learn different penalties) but not for the system-level priors. System-level priors in the current implementation treat transitions symmetrically by unsigned distance (\texttt{same}, \texttt{adjacent}, \texttt{far}): a move from system $s$ to system $s+1$ and a move from $s$ to $s-1$ incur the same penalty. Replacing ``forward progression'' with ``smooth transitions'' covers both the directional bar-level bias and the symmetric system-level bias without overclaiming. This avoids a reviewer question on why system priors are symmetric despite the language suggesting otherwise, and leaves the option of adding directional system priors to Discussion/Future Work if desired.
 
+\subsection*{Item 17: Name the Phase 2 initialization (Section 3.5, Line 161, S4)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+In the second phase, the model's own system prediction is gradually mixed in.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+In the second phase, \emph{starting from the first-phase checkpoint}, the model's own system prediction is gradually mixed in.
+\end{quote}
+
+\textbf{Rationale:}
+Phase 2 in the released training script (\texttt{reproduce.sh}) loads the best checkpoint from Phase 1 via \texttt{--param\_path \$\{PHASE1\_DIR\}/best\_model.pt} rather than re-initializing from scratch. The current wording (``In the second phase, the model's own system prediction is gradually mixed in'') leaves the checkpoint lineage implicit. A four-word parenthetical makes the curriculum explicit and removes any reader doubt about whether Phase 2 is a separate run or a fine-tune. No other Section 3.5 content is affected.
+
+\subsection*{Item 18: Cite Bengio et al.\ (2015) for scheduled sampling (Section 3.5, Line 161, S1)}
+
+\textit{Status: Adopted. New bib entry \texttt{bengio2015scheduled} has been added to \texttt{ISMIRtemplate.bib}.}
+
+\textbf{Original:}
+\begin{quote}
+To address this, training proceeds in two phases.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+To address this, training proceeds in two phases using scheduled sampling \cite{bengio2015scheduled}.
+\end{quote}
+
+\textbf{Bib entry added:}
+\begin{quote}\small\ttfamily
+@inproceedings\{bengio2015scheduled,\\
+\hspace*{1em}title=\{Scheduled Sampling for Sequence Prediction with Recurrent Neural Networks\},\\
+\hspace*{1em}author=\{Bengio, Samy and Vinyals, Oriol and Jaitly, Navdeep and Shazeer, Noam\},\\
+\hspace*{1em}booktitle=\{Advances in Neural Information Processing Systems (NeurIPS)\},\\
+\hspace*{1em}volume=\{28\},\\
+\hspace*{1em}year=\{2015\}\\
+\}
+\end{quote}
+
+\textbf{Rationale:}
+The two-phase curriculum described in Section 3.5, in which ground-truth supervision is gradually replaced by the model's own predictions during training, is the canonical \emph{scheduled sampling} procedure introduced by Bengio, Vinyals, Jaitly, and Shazeer at NeurIPS 2015 (arXiv:1506.03099, verified via web search). Citing the original reference gives proper attribution, names a technique that reviewers familiar with seq2seq training will immediately recognize, and places CODA's training curriculum in an established methodological lineage alongside the already-cited Kendall et al.\ (2018) reference for uncertainty weighting.
+
 
 \section*{Experiments}
 
