@@ -339,6 +339,154 @@ This feature map is shared across all three cascade stages.
 \textbf{Rationale:}
 The note stage is a continuous regression, not a selection over candidates. Calling all three cascade stages part of ``the selection process'' repeats the same terminology mismatch addressed by Introduction Item~4 (contribution-bullet alignment). Deleting ``in the selection process'' removes the mismatch and shortens the sentence. This revision is paired with Introduction Item~4 for consistency.
 
+\subsection*{Item 8: Weaken ``share the same processing pipeline'' (Line 109)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+All three stages share the same processing pipeline, which we describe below.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+All three stages share a common processing pipeline, with stage-specific variations detailed below.
+\end{quote}
+
+\textbf{Rationale:}
+The note stage actually omits cross-attention (see Line 138: ``The note stage uses only Eqs.~\ref{eq:roi}--\ref{eq:conv}''), so saying ``the same'' overstates the commonality and is internally inconsistent with the paragraph three lines later. Softening ``the same'' to ``a common \ldots (with stage-specific variations)'' preserves the useful scaffolding while remaining accurate.
+
+\subsection*{Item 9: Remove redundant $H_t$ definition in Section 3.3 (Line 118)}
+
+\textit{Status: Adopted. Applies only after Method Item~4 lands.}
+
+\textbf{Original (Line 118):}
+\begin{quote}
+Let $H_t = [h_{t-L+1}, \ldots, h_t] \in \mathbb{R}^{L \times d}$ denote the buffer of the most recent~$L$ Mamba hidden states, where $d$ is the hidden dimension of the Mamba encoder.
+\end{quote}
+
+\textbf{Suggested revision:}
+Shorten to a recall pointer:
+\begin{quote}
+Recall from Section~\ref{sec:method} (Model Architecture) that $H_t \in \mathbb{R}^{L \times d}$ is the sliding window of the most recent $L$ Mamba hidden states, with $d$ the hidden dimension of the encoder.
+\end{quote}
+Alternatively, delete the sentence entirely and introduce the notation $L$, $d$ at first use within the Eq.~\ref{eq:crossattn} description.
+
+\textbf{Rationale:}
+Method Item~4 (Model Architecture) introduces $H_t$ in Section~3.2 with the sliding-window semantics. Keeping a second full definition here duplicates the content. A recall pointer preserves reading flow for readers skimming directly into Section~3.3 and avoids any ``wait, was this already defined?'' friction.
+
+\subsection*{Item 10: Move ``(i.e., at one-eighth the spatial resolution of the input)'' to first mention of stride (Line 105 vs.\ Line 120)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original (Line 105, Section 3.2):}
+\begin{quote}
+\ldots further processed by a Feature Pyramid Network (FPN) that produces a stride-8 feature map $F$.
+\end{quote}
+
+\textbf{Original (Line 120, Section 3.3):}
+\begin{quote}
+First, Region of Interest (ROI) Align \cite{he2017mask} extracts a fixed-size feature patch from the stride-8 feature map (i.e., at one-eighth the spatial resolution of the input):
+\end{quote}
+
+\textbf{Suggested revision:}
+Move the parenthetical gloss to the first mention of stride:
+\begin{quote}
+(Line 105, Section 3.2) \ldots produces a stride-8 feature map $F$ (i.e., at one-eighth the spatial resolution of the input).\\
+(Line 120, Section 3.3) First, Region of Interest (ROI) Align \cite{he2017mask} extracts a fixed-size feature patch from the stride-8 feature map:
+\end{quote}
+
+\textbf{Rationale:}
+The parenthetical explains what ``stride-8'' means. Placing this gloss where the term is first introduced (Section~3.2) is more pedagogically coherent than repeating it on second use in Section~3.3. This also shortens Section~3.3 slightly, which helps absorb the small length increases from Items~4, 5, and 9.
+
+\subsection*{Item 11: Rename the attention-scaling constant in Eq.~\ref{eq:crossattn} to avoid reusing $d$ (Line 118 and Line 134)}
+
+\textit{Status: Adopted in principle; final choice of symbol ($C$ vs.\ $d_k$) to be confirmed with Ruogu.}
+
+\textbf{Original (Line 118):}
+\begin{quote}
+\ldots where $d$ is the hidden dimension of the Mamba encoder.
+\end{quote}
+
+\textbf{Original (Line 134, Eq.~\ref{eq:crossattn}):}
+\begin{equation*}
+\bar{f}_r = \mathrm{softmax}\!\left(\frac{\mathrm{flat}(\hat{f}_r)\,(W_a H_t)^\top}{\sqrt{d}}\right) W_a H_t
+\end{equation*}
+
+\textbf{The problem:}
+As defined on Line 118, $d$ is the Mamba hidden dimension (64 in the implementation). The scaling factor $\sqrt{d}$ in scaled dot-product attention, however, should be the key dimension \emph{after} the projection $W_a$: $W_a$ projects the 64-dimensional $H_t$ into the $C$-dimensional attention space that matches the convolved visual features (128 channels in the implementation). Reusing the same symbol $d$ for two different dimensions is dimensionally inconsistent.
+
+\textbf{Suggested revision (option A, simpler):}
+Replace $\sqrt{d}$ in Eq.~\ref{eq:crossattn} with $\sqrt{C}$, and amend the description below Eq.~\ref{eq:crossattn}:
+\begin{quote}
+$\bar{f}_r = \mathrm{softmax}\!\left(\dfrac{\mathrm{flat}(\hat{f}_r)\,(W_a H_t)^\top}{\sqrt{C}}\right) W_a H_t$,\\[2pt]
+where $W_a$ is a learned linear projection onto the $C$-dimensional attention space shared with $\hat{f}_r$.
+\end{quote}
+
+\textbf{Suggested revision (option B, more standard):}
+Write $\sqrt{d_k}$ and add a definition: ``$d_k$ denotes the per-head key dimension.'' This reads as textbook scaled dot-product attention notation but introduces a new symbol that might encourage a reviewer to ask about the multi-head decomposition (which the paper's single-head presentation otherwise glosses over).
+
+\textbf{Rationale:}
+A careful reviewer comparing the dimensions of $\mathrm{flat}(\hat{f}_r)$ (in the $C$-dimensional feature space) and $W_a H_t$ (produced by projecting from $d$ to $C$) will immediately notice that the current $\sqrt{d}$ is dimensionally wrong. Option~A resolves the inconsistency with one symbol change and does not introduce any new notation the paper does not already use. Option~B is closer to common attention-paper notation but adds bookkeeping.
+
+\subsection*{Item 12: State softmax normalization explicitly (Line 138)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+The system stage applies Eqs.~\ref{eq:roi}--\ref{eq:crossattn} to every system candidate on the page, producing~$\log p(s_t \mid h_t)$ via adaptive average pooling and a linear classifier.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+The system stage applies Eqs.~\ref{eq:roi}--\ref{eq:crossattn} to every system candidate on the page, producing~$\log p(s_t \mid h_t)$ via adaptive average pooling and a linear classifier followed by softmax normalization.
+\end{quote}
+
+\textbf{Rationale:}
+A linear classifier produces unnormalized logits, not log-probabilities. The softmax over candidates is what turns these into $\log p(\cdot)$. Stating the softmax step explicitly removes a small notational gap between ``linear classifier'' (logit-producing) and the probabilistic output $\log p(s_t \mid h_t)$.
+
+\subsection*{Item 13: Replace ``because the search space is small enough'' with ``at this stage'' (Line 138)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+The note stage uses only Eqs.~\ref{eq:roi}--\ref{eq:conv} (no cross-attention because the search space is small enough) on the selected bar and regresses bar-local coordinates $u_t = (c_x, c_y) \in [0,1]^2$ via sigmoid activation.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+The note stage uses only Eqs.~\ref{eq:roi}--\ref{eq:conv} (no cross-attention at this stage) on the selected bar and regresses bar-local coordinates $u_t = (c_x, c_y) \in [0,1]^2$ via sigmoid activation.
+\end{quote}
+
+\textbf{Rationale:}
+``Because the search space is small enough'' is a vague justification that invites the reviewer question ``how small is small enough?'' The note stage's actual design motivation (only one ROI remains; cross-temporal matching is not needed for a regression target within a bar) can be documented in Implementation details or elaborated in an ablation if space permits. Replacing the phrase with ``at this stage'' states the architectural fact without making a claim that would need defending.
+
+\subsection*{Item 14: Remove forward declaration of $f_r$ (Lines 118 and 120)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original (Line 118, last sentence):}
+\begin{quote}
+\ldots For each candidate region~$r$ (a system or bar bounding box from the score layout metadata), let $f_r$ denote the extracted visual features for~$r$. The pipeline proceeds as follows.
+\end{quote}
+
+\textbf{Original (Line 120, Eq.~\ref{eq:roi} introduction):}
+\begin{quote}
+First, Region of Interest (ROI) Align \cite{he2017mask} extracts a fixed-size feature patch from the stride-8 feature map:
+\end{quote}
+
+\textbf{Suggested revision:}
+Delete ``let $f_r$ denote the extracted visual features for~$r$'' from Line 118, and introduce $f_r$ at the point of use in Line 120:
+\begin{quote}
+(Line 118) \ldots For each candidate region~$r$ (a system or bar bounding box from the score layout metadata), the pipeline proceeds as follows.\\[4pt]
+(Line 120) First, Region of Interest (ROI) Align \cite{he2017mask} extracts a fixed-size feature patch $f_r$ from the stride-8 feature map:
+\end{quote}
+
+\textbf{Rationale:}
+The original structure forward-declares $f_r$ (``let $f_r$ denote \ldots'') before defining how it is extracted, then defines extraction via Eq.~\ref{eq:roi} one sentence later. Introducing $f_r$ directly at the point of extraction eliminates the forward declaration, saves one sentence, and keeps the prose in the paper's prevailing third-person, impersonal voice (avoiding first-person alternatives such as ``we extract $f_r$ \ldots'').
+
 
 \section*{Experiments}
 
