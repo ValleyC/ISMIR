@@ -223,6 +223,122 @@ This cascaded factorization enforces valid geometric structure by construction: 
 \textbf{Rationale:}
 ``Inherently'' suggests an intrinsic property without specifying its source. The geometric guarantee actually comes from restricting each stage's candidate set based on the previous stage's prediction, which is an architectural design choice. ``By construction'' names the source of the guarantee more precisely and contrasts more sharply with the criticism of CYOLO in Section 2.2, where the model is said to ``implicitly'' learn structural consistency. The revision also pre-empts reviewer questions about whether ``inherently'' refers to a mathematical property or an implementation choice.
 
+\subsection*{Item 2: Align Figure~1 caption with Section 3.2 stream order (Line 78 caption and Line 101)}
+
+\textit{Status: Adopted (change the caption to lead with audio).}
+
+\textbf{Current state:}
+\begin{itemize}
+    \item Figure~1 caption (Line 78) introduces the two streams in the order ``CNN visual backbone and \ldots Mamba audio encoder'' (visual first).
+    \item Section~3.2 body text (Line 101) introduces them as ``audio and visual'' (audio first), and the two paragraphs that follow are ordered audio paragraph $\to$ visual paragraph.
+\end{itemize}
+
+\textbf{Suggested revision:}
+Change the Figure~1 caption to lead with the audio stream so that it matches the body text:
+\begin{quote}
+Overview of the CODA architecture. A causal Mamba audio encoder and a shared CNN visual backbone feed into three cascaded stages: system selection, bar selection, and note localization. Beam search with learned temporal priors decodes the cascade over time.
+\end{quote}
+
+\textbf{Rationale:}
+Small cross-reference inconsistencies between body text and figure captions are a low-stakes issue individually but accumulate when reviewers scan both artifacts. Aligning the order in the caption with the body text costs one line and removes a latent source of reading friction. Changing the caption (rather than the body) is strictly less invasive because the body has two full paragraphs in the audio-first order that would otherwise need to be reshuffled.
+
+\subsection*{Item 3: Remove ``global'' from the description of $z_t$ (Line 103 and Line 124)}
+
+\textit{Status: Adopted (delete ``global'' in both places).}
+
+\textbf{Original (Line 103):}
+\begin{quote}
+A two-layer causal Mamba encoder processes each frame, producing a global conditioning vector $z_t$ and a buffer of recent hidden states $H_t$.
+\end{quote}
+
+\textbf{Original (Line 124):}
+\begin{quote}
+The extracted features $f_r$ are then modulated by the global audio vector $z_t$ via Feature-wise Linear Modulation (FiLM) \ldots
+\end{quote}
+
+\textbf{Suggested revision:}
+Delete ``global'' in both places:
+\begin{quote}
+(Line 103) \ldots producing a conditioning vector $z_t$ and \ldots\\
+(Line 124) \ldots modulated by the audio vector $z_t$ via FiLM \ldots
+\end{quote}
+
+\textbf{Rationale:}
+The word ``global'' is not factually wrong --- depending on which convention a reader brings in, it can be read as ``whole-history-aware'' (reasonable, since Mamba's recurrent state accumulates all past audio into $z_t$) or as ``applied spatially globally to the full visual feature map via FiLM'' (also reasonable, describing how $z_t$ is used downstream). The problem is that a third reading, ``pooled over time,'' is equally natural in deep-learning usage (cf.\ global average pooling), and this reading is inconsistent with the implementation: $z_t$ is not time-pooled but is produced per frame from the current Mamba hidden state. Dropping ``global'' removes the ambiguous reading at no cost; the following sentence (``$z_t$ summarizes the audio context up to frame $t$'') already conveys the intended whole-history-aware meaning.
+
+\subsection*{Item 4: Make both audio-history mechanisms explicit in Section 3.2 (Line 103)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original (Line 103):}
+\begin{quote}
+A two-layer causal Mamba encoder processes each frame, producing a global conditioning vector $z_t$ and a buffer of recent hidden states $H_t$. $z_t$ summarizes the audio context up to frame~$t$, while $H_t$ serves as the key and value source for cross-attention (Eq.~\ref{eq:crossattn}).
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+A two-layer causal Mamba encoder processes each frame. Its recurrent state compactly accumulates the entire audio history up to frame~$t$, yielding a conditioning vector $z_t$. In parallel, we maintain a sliding window $H_t$ of the most recent $L$ per-frame outputs. $z_t$ provides global conditioning for the visual feature map (Eq.~\ref{eq:film}), while $H_t$ serves as the key and value source for cross-attention (Eq.~\ref{eq:crossattn}).
+\end{quote}
+
+\textbf{Rationale:}
+The original wording ``producing a global conditioning vector $z_t$ and a buffer of recent hidden states $H_t$'' conflates two distinct audio-history mechanisms and slightly misattributes the buffer to the encoder. CODA actually uses two complementary stores:
+\begin{itemize}
+    \item \emph{Mamba's recurrent state} (O(1) memory, fixed size) compactly accumulates all past audio into a single vector. This is the source of $z_t$, and is the reason $z_t$ can ``summarize the audio context up to frame~$t$'' without any explicit buffering.
+    \item \emph{A sliding window of the most recent $L$ per-frame Mamba outputs} (O($L$) memory, $L = 64$ frames $\approx 3.2$\,s at 20\,fps). This is $H_t$, maintained externally to the encoder (a \texttt{deque} in the streaming inference loop; an internal truncation inside the cross-attention head at training time). It preserves per-frame resolution so that cross-attention can do fine-grained temporal alignment.
+\end{itemize}
+Making both mechanisms explicit clarifies how a single vector $z_t$ can encode arbitrarily long history (via the recurrent state) and why a separate windowed $H_t$ is still needed (for per-frame cross-attention). It also fixes the attribution: the windowing of $H_t$ is not performed inside the encoder. The revised sentence also integrates the usage description into the same paragraph, letting the third sentence be dropped or shortened.
+
+\subsection*{Item 5: Name the FiLM condition source in Section 3.2 (Line 105)}
+
+\textit{Status: Adopted (if space permits).}
+
+\textbf{Original:}
+\begin{quote}
+The score page image is processed by a CNN backbone with FiLM conditioning at deeper stages.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+The score page image is processed by a CNN backbone with FiLM conditioning at deeper stages, driven by the audio conditioning vector $z_t$.
+\end{quote}
+
+\textbf{Rationale:}
+The current sentence introduces FiLM without naming what the modulation is conditioned on. A first-time reader must hold the question in mind until Section~3.3 (Eq.~\ref{eq:film}) to learn that $z_t$ is the conditioning input. Naming $z_t$ here costs a short clause and forms an explicit bridge between the audio and visual streams at the architectural level. This is a low-severity readability fix, worth adopting only if column space allows.
+
+\subsection*{Item 6: Drop ``single'' before ``stride-8 feature map'' (Line 105)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+\ldots further processed by a Feature Pyramid Network (FPN) that produces a single stride-8 feature map $F$.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+\ldots further processed by a Feature Pyramid Network (FPN) that produces a stride-8 feature map $F$.
+\end{quote}
+
+\textbf{Rationale:}
+The CNN backbone actually produces both a stride-8 feature map (P3) and a stride-16 feature map (P4); the design choice is to use only P3 for all downstream cascade stages. The word ``single'' reads as a statement about the FPN architecture (as if the FPN has one output), which would be at odds with the standard definition of an FPN. A reviewer familiar with object-detection architectures may flag this. Dropping ``single'' makes the sentence truthful without adding length. A slightly more explicit alternative is ``we use the finest (stride-8) FPN output as $F$.''
+
+\subsection*{Item 7: Drop ``in the selection process'' (Line 105)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+This feature map is shared across all three cascade stages in the selection process.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+This feature map is shared across all three cascade stages.
+\end{quote}
+
+\textbf{Rationale:}
+The note stage is a continuous regression, not a selection over candidates. Calling all three cascade stages part of ``the selection process'' repeats the same terminology mismatch addressed by Introduction Item~4 (contribution-bullet alignment). Deleting ``in the selection process'' removes the mismatch and shortens the sentence. This revision is paired with Introduction Item~4 for consistency.
+
 
 \section*{Experiments}
 
