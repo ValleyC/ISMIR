@@ -42,7 +42,7 @@
 \maketitle
 
 \begin{abstract}
-Real-time score following from sheet images remains challenging because the model must process streaming audio while resolving highly repetitive visual patterns under strict latency constraints. Recent image-based methods have attempted to use multi-resolution prediction by simultaneously predicting the positions of the active system, bar, and note. However, their predictions across these different levels of notation are independent, which makes the predictions unstable and introduces unnecessary extra search space for bar- and note-level predictions. Most existing methods also lack mechanisms to recover from score discontinuities, such as repeats, D.C., or coda jumps. This paper proposes CODA, to the best of our knowledge, the first real-time score following system that addresses both gaps. CODA explicitly exploits the cascaded structure of music scores: it first selects the active system, then the active bar within it, and finally the active note within the selected bar. This enforces prediction consistency across resolutions. A silence-driven mechanism enables jump recovery whenever a pause is detected, indicating a score discontinuity. CODA combines a CNN visual backbone with a causal Mamba audio encoder. At each frame, visual features of candidate regions are extracted and modulated by audio context via FiLM conditioning and cross-attention over recent audio history. The resulting scores are decoded over time using beam search with learned temporal transition priors. Both training and evaluation are based on the Multimodal Sheet Music Dataset (MSMD) piano benchmarks. CODA achieves state-of-the-art tracking and discontinuity-recovery accuracy under real-time audio throughput.
+Real-time score following from sheet images remains challenging because the model must process streaming audio while resolving highly repetitive visual patterns under strict latency constraints. Recent image-based methods have attempted to use multi-resolution prediction by simultaneously predicting the positions of the active system, bar, and note. However, their predictions across these different levels of notation are independent, which makes the predictions unstable and introduces unnecessary extra search space for bar- and note-level predictions. Most existing methods also lack mechanisms to recover from score discontinuities, such as repeats, D.C., or coda jumps. This paper proposes CODA, to the best of our knowledge, the first real-time score following system that addresses both gaps. CODA explicitly exploits the cascaded structure of music scores: it first selects the active system, then the active bar within it, and finally the active note within the selected bar. This enforces prediction consistency across resolutions. A silence-driven mechanism enables jump recovery whenever a pause is detected, indicating a score discontinuity. CODA combines a CNN visual backbone with a causal Mamba audio encoder. At each frame, visual features of candidate regions are extracted and modulated by audio context via FiLM conditioning and cross-attention over recent audio history. The resulting scores are decoded over time using beam search with learned temporal transition priors. Both training and evaluation are based on the Multimodal Sheet Music Dataset (MSMD) piano benchmarks. CODA achieves state-of-the-art tracking and discontinuity-recovery accuracy under real-time audio throughput. Code is available at \url{https://anonymous.4open.science/r/CODA80}.
 \end{abstract}
 
 \section{Introduction}\label{sec:introduction}
@@ -206,21 +206,21 @@ We compare against the image-based score following methods evaluated
 in~\cite{henkel2021real}: \textbf{MM-Loc}~\cite{dorfer2016towards}, a
 supervised multimodal localization model; \textbf{RL}~\cite{henkel2019score},
 a reinforcement-learning agent; \textbf{CUNet}~\cite{henkel2020learning}, a
-conditional U-Net for full-page segmentation; \textbf{CYOLO}, the conditional
-YOLO detector predicting note-level bounding boxes; and \textbf{CYOLO-SB}, the multi-resolution variant that adds system and bar heads. All baseline numbers are taken directly from~\cite{henkel2021real} under the same evaluation protocol. We also list \textbf{CYOLO-SB\,+\,A} for reference, noting that this variant uses additional proprietary training data (scanned scores and commercial recordings) that are not available to other methods. Methods that rely on automatic music transcription as a front end, such as Peter et al.~\cite{peter2025pairing}, are not directly comparable because they depend on symbolic-level intermediate representations rather than operating on sheet images.
+conditional U-Net for full-page segmentation; \textbf{CYOLO}~\cite{henkel2021multi}, the conditional
+YOLO detector predicting note-level bounding boxes; and \textbf{CYOLO-SB}~\cite{henkel2021real}, the multi-resolution variant that adds system and bar heads. All baseline numbers are taken directly from~\cite{henkel2021real} under the same evaluation protocol. We also list \textbf{CYOLO-SB\,+\,A} for reference, noting that this variant uses additional proprietary training data (scanned scores and commercial recordings) that are not available to other methods. Methods that rely on automatic music transcription as a front end, such as Peter et al.~\cite{peter2025pairing}, are not directly comparable because they depend on symbolic-level intermediate representations rather than operating on sheet images.
  
 \subsubsection{Implementation details.}
 Audio is processed at 22,050~Hz with a 2048-sample STFT (hop size 1\,102,
 ${\approx}\,$20~frames per second) and a 78-bin log-filterbank spanning
 60\,Hz--6\,kHz. Score pages are converted to grayscale and scaled to a fixed
 width of 416 pixels. The Mamba audio encoder has two layers with hidden
-dimension~64, state dimension~16, convolution width~4, expansion factor~2, and projects to a 128-dimensional conditioning vector~$z_t$. Both the system and bar selection heads use cross-attention with four heads over an audio buffer of 64 frames. The beam search retains $k{=}3$ system and $m{=}3$ bar candidates per frame. Break mode uses an energy onset threshold of~0.1, release threshold of~0.25, a silence onset of 3~frames (${\approx}\,$150\,ms), and a grace window of 8~frames (${\approx}\,$400\,ms).
+dimension~64, state dimension~16, convolution width~4, expansion factor~2, and projects to a 128-dimensional conditioning vector~$z_t$. Both the system and bar selection heads use cross-attention with four heads over an audio buffer of 64 frames. The beam search retains $k{=}3$ system and $m{=}3$ bar candidates per frame. Break mode uses an energy onset threshold of~0.1, release threshold of~0.25, a silence onset of 3~frames (${\approx}\,$150\,ms), and a grace window of 8~frames (${\approx}\,$400\,ms). During break, transition penalties are fully suppressed (multiplied by zero), and the beam is expanded to all systems on the page with $m{=}3$ bars per system.
  
 Training follows the two-phase curriculum described in
 Section~\ref{sec:method}. Phase~1 trains for 30~epochs with a learning rate of
 $5{\times}10^{-4}$ under ground-truth system routing. Phase~2 fine-tunes for
 20~epochs at $1{\times}10^{-4}$ with scheduled sampling, where the probability of using the model's own system prediction ramps linearly to $p_{\max}{=}0.7$ over the first 5~epochs. Both phases use the AdamW optimizer with a batch size of~16, cosine learning-rate decay, and gradient clipping at
-norm~1.0. Data augmentation includes jump augmentation (Section~\ref{subsec:jump}), spatial shifts, tempo scaling, impulse-response convolution, gain and noise perturbation, and cold-start truncation. Following~\cite{henkel2021real}, we also apply impulse response (IR) augmentation during training, convolving the audio with a randomly selected room impulse response on-the-fly to model varying microphone and room conditions.
+norm~1.0. Data augmentation includes jump augmentation (Section~\ref{subsec:jump}), spatial shifts, tempo scaling, and cold-start truncation. Following~\cite{henkel2021real}, impulse response (IR) augmentation is also applied during training, convolving the audio with a randomly selected room impulse response on-the-fly to model varying microphone and room conditions. Jump augmentation samples destinations from a weighted mixture of six categories: \emph{repeat} (40\%), \emph{bar correction} (15\%), \emph{skip} (15\%), \emph{restart} (10\%), \emph{page jump} (10\%), and \emph{random} (10\%).
  
 CODA has 2.0M trainable parameters. All training and experiments are conducted on a single NVIDIA RTX A6000 GPU (48\,GB) with an Intel Xeon Gold 5218R CPU and 64\,GB RAM. At inference, CODA processes each audio frame in 12.8\,ms (78.1\,fps), within the 50\,ms real-time budget at 20\,fps.
 
@@ -268,21 +268,18 @@ CODA (ours)  & \textbf{.721} & \textbf{.743} & \textbf{.883} & \textbf{.914} & \
 \subsection{Standard Tracking Results}\label{sec:tracking}
  
 Table~\ref{tab:main} compares CODA to the baselines on the two evaluation
-settings described in Section~\ref{sec:setup}. Baseline numbers are reproduced from~\cite{henkel2021real} under the identical evaluation protocol.
- 
-In Setting~I, CODA achieves .914 at ${\leq}\,0.10$\,s compared to .837 for CYOLO-SB, with bar accuracy improving from .890 to .975 and system accuracy from .963 to .991. In Setting~II, CODA achieves .743 at ${\leq}\,0.10$\,s versus .630 for CYOLO-SB. Notably, CODA without proprietary data outperforms CYOLO-SB+A across all thresholds in both settings.
+settings described in Section~\ref{sec:setup}. In Setting~I, CODA achieves .914 at ${\leq}\,0.10$\,s compared to .837 for CYOLO-SB, with bar accuracy improving from .890 to .975 and system accuracy from .963 to .991. In Setting~II, CODA achieves .743 at ${\leq}\,0.10$\,s versus .630 for CYOLO-SB. Notably, CODA without proprietary data outperforms CYOLO-SB+A across all thresholds in both settings.
 
 \subsection{Jump Recovery Evaluation}\label{sec:jump}
  
-To fairly evaluate jump recovery, we construct a jump test benchmark from the 94 MSMD test pieces. We manually annotated the repeat structure of each piece (repeat barlines, da capo, volta brackets, binary form, etc.). Of the 94 pieces, 66 contain written repeat structures and 28 do not. The benchmark is partitioned into two subsets accordingly. The \emph{repeat subset} comprises the 66 pieces with repeats, producing 131 jumps that follow the annotated performance order. The \emph{random subset} comprises the remaining 28 pieces without repeats, each receiving at least 3 randomly placed jumps as a stress test.
+To fairly evaluate jump recovery, we construct a jump test benchmark from the 94 MSMD test pieces. We manually annotated the repeat structure of each piece (repeat barlines, da capo, volta brackets, binary form, etc.). Of the 94 pieces, 66 contain written repeat structures and 28 do not. The benchmark is partitioned into two subsets accordingly. The \emph{repeat subset} comprises the 66 pieces with repeats, producing 131 jumps that follow the annotated performance order. The \emph{random subset} comprises the remaining 28 pieces without repeats, each receiving 3 randomly placed jumps (84 jumps in total) as a stress test.
  
 We report three metrics on post-jump segments: \emph{system recovery rate}
 (fraction of jumps where the correct system is identified within 1.0 and
-2.0\,s), \emph{mean recovery latency} (frames to first correct system
-prediction), and \emph{post-jump tracking error} (${\leq}\,1.0$\,s threshold
+2.0\,s), \emph{mean recovery latency} (time in seconds from audio resumption to the first correct system
+prediction), and \emph{post-jump tracking accuracy} (${\leq}\,1.0$\,s threshold
 in the 5\,s window after each jump).
  
-% TODO: fill in numbers after running experiments
 \begin{table}[h]
 \centering
 \caption{Jump recovery results on the repeat-aware jump-augmented MSMD test set.
@@ -346,46 +343,14 @@ w/o sched.\ sampling   & .888 & .906 & .951 & .978 & .968 & .989 \\
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:ablation} shows the results. The largest degradation comes from removing the cascade ($-.045$ at ${\leq}\,0.10$\,s, bar accuracy drops from .975 to .931), confirming that enforced geometric consistency is the most important component. Beam search and cross-attention contribute the next-largest gains ($-.026$ and $-.019$ at ${\leq}\,0.10$\,s, respectively). Scheduled sampling has the smallest individual effect, but remains necessary to close the train-inference routing gap.
+Table~\ref{tab:ablation} shows the results. The largest degradation comes from removing the cascade ($-.045$ at ${\leq}\,0.10$\,s, bar accuracy drops from .975 to .931), confirming that enforced geometric consistency is the most important component. Beam search, cross-attention, and temporal priors contribute the next-largest gains ($-.026$, $-.019$, and $-.014$ at ${\leq}\,0.10$\,s, respectively). Scheduled sampling has the smallest individual effect, but provides a small, consistent improvement across all thresholds by closing the train-inference routing gap.
 
 % \subsection{Latency and Throughput}\label{sec:latency}
 
-% % TODO: fill in timing numbers after profiling
-% CODA must process each audio frame within 50\,ms to meet the 20\,fps real-time constraint. Table~\ref{tab:latency} reports the per-component inference time averaged over all test pages on the hardware described in
-% Section~\ref{sec:setup}. The visual backbone and FPN are computed once per audio frame because the FiLM conditioning changes with each new~$z_t$; however, the ROI~Align and selection heads operate only on the $k{\times}m$ beam candidates rather than the full feature map, keeping their cost low. The Mamba encoder uses O(1) per-frame stepping, contributing minimal latency. In total, CODA processes each frame in [--]\,ms ([--]\,fps), comfortably within the real-time budget.
-
-% \begin{table}[h]
-% \centering
-% \caption{Per-frame inference latency breakdown.}
-% \label{tab:latency}
-% \footnotesize
-% \begin{tabular}{l r}
-% \toprule
-% Component & Time (ms) \\
-% \midrule
-% Mamba audio encoder (step)  & -- \\
-% Visual backbone + FPN       & -- \\
-% System selection (top-$k$)  & -- \\
-% Bar selection (top-$m$)     & -- \\
-% Note localization           & -- \\
-% Beam search decoding        & -- \\
-% \midrule
-% \textbf{Total per frame}    & \textbf{--} \\
-% \textbf{Throughput}         & \textbf{--\,fps} \\
-% \bottomrule
-% \end{tabular}
-% \end{table}
-
-% % TODO: add comparison sentence once numbers are available, e.g.:
-% % For reference, CYOLO reports 6.03\,ms per frame on an NVIDIA GTX 1080
-% % \cite{henkel2021real}. CODA's higher latency reflects the additional
-% % cost of cross-attention and beam search, but remains well within the
-% % real-time budget.
-
 \section{Discussion and Conclusion}\label{sec:conclusion}
 This paper presents CODA, which formulates image-based score following as
-cascaded selection over known candidates and introduces a silence-triggered
-break mode for jump recovery. We also contribute a repeat-aware jump test benchmark with manually annotated repeat structures for the MSMD test set, providing the first standardized evaluation protocol for discontinuity handling in image-based score following. Despite the state-of-the-art performance achieved, several limitations remain. CODA is trained and evaluated exclusively on solo piano from the MSMD dataset~\cite{henkel2021real}. Larger datasets that pair real recordings with scanned scores would benefit not only this work but the field as a whole. The cascaded formulation itself is not limited to piano. Extending to other solo instruments is a natural first step. Chamber music and orchestral settings pose additional challenges due to timbral overlap, denser layouts, and multiple simultaneous parts. Finally, evaluation under real-world conditions, including scanned pages, commercial recordings, and live microphone input, is needed to assess the method under more realistic scenarios.
+cascaded selection over known candidates and introduces a silence-driven
+break mode for jump recovery. We also contribute a repeat-aware jump test benchmark with manually annotated repeat structures for the MSMD test set, providing the first standardized evaluation protocol for discontinuity handling in image-based score following. Despite achieving state-of-the-art performance, several limitations remain. CODA is trained and evaluated exclusively on solo piano from the MSMD dataset~\cite{dorfer2018learning}. Larger datasets that pair real recordings with scanned scores would benefit not only this work but the field as a whole. The cascaded formulation itself is not limited to piano. Extending to other solo instruments is a natural first step. Chamber music and orchestral settings pose additional challenges due to timbral overlap, denser layouts, and multiple simultaneous parts. Finally, evaluation under real-world conditions, including scanned pages, commercial recordings, and live microphone input, is needed to assess the method under more realistic scenarios.
 
 \bibliography{ISMIRtemplate}
 
