@@ -36,6 +36,18 @@ The resulting scores are decoded over time using beam search with learned tempor
     \item Adds ``temporal'' to ``transition priors'' to clarify that the learned penalties encode smoothness over time.
 \end{itemize}
 
+\subsection*{Code availability statement at the end of the Abstract}
+
+\textit{Status: Adopted. Added as a final sentence to the abstract; the URL is an anonymous \texttt{4open.science} mirror appropriate for double-blind submission.}
+
+\textbf{Suggested addition (appended to the last sentence of the Abstract, Line 45):}
+\begin{quote}
+\ldots CODA achieves state-of-the-art tracking and discontinuity-recovery accuracy under real-time audio throughput. Code is available at \url{https://anonymous.4open.science/r/CODA80}.
+\end{quote}
+
+\textbf{Rationale:}
+ISMIR reviewers increasingly weight reproducibility signals during scoring, and the anonymous \texttt{4open.science} mirror preserves double-blind compliance while exposing the full code base for inspection. Placing the availability statement at the end of the Abstract, rather than in the Conclusion or an acknowledgments section, makes it visible to every reviewer who reads even the Abstract alone and does not disrupt the flow of later sections. The \texttt{url} package is already loaded in the manuscript preamble (\texttt{\textbackslash usepackage\{amsmath,amssymb,cite,url\}}), so \texttt{\textbackslash url\{...\}} renders correctly without additional setup.
+
 
 \section*{Introduction}
 
@@ -633,6 +645,252 @@ Methods that rely on automatic music transcription as a front end, such as Peter
 
 \textbf{Rationale:}
 Peter et al. [16] is cited in Section 2.1 as a recent strong result in symbolic score following. Reviewers familiar with this work may wonder why it does not appear in Table 1. A brief sentence in the Baselines subsection clarifies that the comparison is limited to image-based methods and that transcription-based approaches fall outside this scope.
+
+\subsection*{Item 3: Inline cites for CYOLO and CYOLO-SB in Baselines (Section 4.1.3, Line 209--210)}
+
+\textit{Status: Adopted. Both bib keys \texttt{henkel2021multi} and \texttt{henkel2021real} already exist in \texttt{ISMIRtemplate.bib}; no new bib entries required.}
+
+\textbf{Original:}
+\begin{quote}
+\ldots \textbf{CYOLO}, the conditional YOLO detector predicting note-level bounding boxes; and \textbf{CYOLO-SB}, the multi-resolution variant that adds system and bar heads.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+\ldots \textbf{CYOLO}~\cite{henkel2021multi}, the conditional YOLO detector predicting note-level bounding boxes; and \textbf{CYOLO-SB}~\cite{henkel2021real}, the multi-resolution variant that adds system and bar heads.
+\end{quote}
+
+\textbf{Rationale:}
+The other three baselines in the same sentence (\textbf{MM-Loc}, \textbf{RL}, \textbf{CUNet}) each have an inline \texttt{\textbackslash cite} to their origin paper, but CYOLO and CYOLO-SB do not. Table~\ref{tab:main} cites \texttt{henkel2021multi} for CYOLO (EUSIPCO 2021, note-only variant) and \texttt{henkel2021real} for CYOLO-SB (Frontiers 2021, multi-resolution variant), so the references are already established in the paper. Adding them at first mention in Baselines gives every compared method a parallel introduction and removes an easy point of reviewer friction.
+
+\subsection*{Item 4: Minimal rewrite of the data-augmentation paragraph (Section 4.1.4, Line 223)}
+
+\textit{Status: Adopted. Three minimal edits on the paragraph; the original two-sentence structure is preserved so the detailed IR description in sentence 2 stays untouched.}
+
+\textbf{Original:}
+\begin{quote}
+Data augmentation includes jump augmentation (Section~\ref{subsec:jump}), spatial shifts, tempo scaling, impulse-response convolution, gain and noise perturbation, and cold-start truncation. Following~\cite{henkel2021real}, we also apply impulse response (IR) augmentation during training, convolving the audio with a randomly selected room impulse response on-the-fly to model varying microphone and room conditions.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+Data augmentation includes jump augmentation (Section~\ref{subsec:jump}), spatial shifts, tempo scaling, and cold-start truncation. Following~\cite{henkel2021real}, we also apply impulse response (IR) augmentation during training, convolving the audio with a randomly selected room impulse response on-the-fly to model varying microphone and room conditions. Jump augmentation samples destinations from a weighted mixture of six categories: \emph{repeat} (40\%), \emph{bar correction} (15\%), \emph{skip} (15\%), \emph{restart} (10\%), \emph{page jump} (10\%), and \emph{random} (10\%).
+\end{quote}
+
+\textbf{Rationale:}
+\begin{itemize}
+    \item \textbf{``Gain and noise perturbation'' removed.} Verified against the code (three search passes over \texttt{coda/dataset.py}, \texttt{coda/augmentations/}, \texttt{scripts/train.py}): no explicit gain scaling (no \texttt{signal *= random\_scalar}) and no explicit noise addition (no \texttt{signal += randn()}) are applied anywhere. The dataset's own augmentation-status message reads \texttt{"ENABLED (spatial shifts + audio padding)"}, and no \texttt{--noise} or \texttt{--gain} flag exists on the training CLI. The IR convolution does incidentally introduce amplitude and spectral variation across samples because the IR pool is unnormalized, but calling that ``gain and noise perturbation'' stretches standard ML terminology and invites reviewer reproducibility friction.
+    \item \textbf{``Impulse-response convolution'' removed from the first-sentence list.} The second sentence of the paragraph already describes IR augmentation in detail (``Following~\cite{henkel2021real}, we also apply impulse response (IR) augmentation\ldots''); listing it a second time as a bullet in the first sentence is redundant. Removing the bullet resolves the duplication without touching the detailed IR sentence.
+    \item \textbf{Jump-augmentation six-way distribution added.} Section 3.6 and the existing 4.1.4 list both describe jump augmentation only as ``randomly selected destination,'' hiding the fact that destinations come from a weighted mixture of six structured categories (\texttt{JUMP\_TYPE\_WEIGHTS} in \texttt{coda/dataset.py}). The distribution is a designed choice that affects reproducibility and ties directly to the repeat-aware benchmark; reviewers will want to see it. The added third sentence lists the six categories and their weights. The silence-duration detail (3--12 frames) is already covered in Section 3.6 and is not repeated here.
+\end{itemize}
+
+\subsection*{Item 5: Complete the Break-mode parameter list (Section 4.1.4, Line 217)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+Break mode uses an energy onset threshold of~0.1, release threshold of~0.25, a silence onset of 3~frames ($\approx$\,150\,ms), and a grace window of 8~frames ($\approx$\,400\,ms).
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+Break mode uses an energy onset threshold of~0.1, release threshold of~0.25, a silence onset of 3~frames ($\approx$\,150\,ms), and a grace window of 8~frames ($\approx$\,400\,ms). During break, transition penalties are fully suppressed (multiplied by zero), and the beam is expanded to all systems on the page with $m{=}3$ bars per system.
+\end{quote}
+
+\textbf{Rationale:}
+Section 3.6 describes Break mode qualitatively (``priors are suppressed,'' ``the system beam is widened to cover all candidates''), but Section 4.1.4, which is where the reproducibility-minded reader looks for numbers, omits two parameters that would be needed to replicate the behaviour: the prior-scaling factor \texttt{prior\_scale} (\texttt{0.0}, i.e.\ full suppression) and the bar beam width during break \texttt{beam\_m\_bars} (\texttt{3}). The added sentence states both. Two further parameters exist in the code (\texttt{energy\_window}$=100$ and \texttt{min\_history}$=10$) but they govern internal energy-baseline normalization and can safely remain undocumented at the paper level without affecting high-level reproducibility.
+
+\subsection*{Item 6: Drop the redundant baseline-source sentence and merge the two paragraphs of Section~4.2 into one (Lines 270--273)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original (two paragraphs):}
+\begin{quote}
+Table~\ref{tab:main} compares CODA to the baselines on the two evaluation settings described in Section~\ref{sec:setup}. Baseline numbers are reproduced from~\cite{henkel2021real} under the identical evaluation protocol.
+
+In Setting~I, CODA achieves .914 at ${\leq}\,0.10$\,s compared to .837 for CYOLO-SB, with bar accuracy improving from .890 to .975 and system accuracy from .963 to .991. In Setting~II, CODA achieves .743 at ${\leq}\,0.10$\,s versus .630 for CYOLO-SB. Notably, CODA without proprietary data outperforms CYOLO-SB+A across all thresholds in both settings.
+\end{quote}
+
+\textbf{Suggested revision (single merged paragraph):}
+\begin{quote}
+Table~\ref{tab:main} compares CODA to the baselines on the two evaluation settings described in Section~\ref{sec:setup}. In Setting~I, CODA achieves .914 at ${\leq}\,0.10$\,s compared to .837 for CYOLO-SB, with bar accuracy improving from .890 to .975 and system accuracy from .963 to .991. In Setting~II, CODA achieves .743 at ${\leq}\,0.10$\,s versus .630 for CYOLO-SB. Notably, CODA without proprietary data outperforms CYOLO-SB+A across all thresholds in both settings.
+\end{quote}
+
+\textbf{Rationale:}
+Two edits bundled together:
+\begin{itemize}
+    \item \textbf{Redundant baseline-source sentence deleted.} Section~4.1.3 (Baselines) already states ``All baseline numbers are taken directly from~\cite{henkel2021real} under the same evaluation protocol.'' Repeating the same attribution in Section~4.2 is redundant, and the original wording (``reproduced from \ldots under the identical evaluation protocol'') is also slightly ambiguous because ``reproduced'' can suggest re-running the baselines rather than copying their published numbers.
+    \item \textbf{Paragraphs merged.} After removing the redundant sentence, the first paragraph collapses to a single introductory clause. Merging it with the numerical-highlights paragraph produces one tight Results paragraph that flows directly from the table pointer into the headline comparisons. This matches common ISMIR style, where Results sections with a dominant table use the body text only to narrate the key cells.
+\end{itemize}
+The net effect is one line saved and a slightly more assertive Results section, with no loss of information.
+
+\subsection*{Item 7: Add the random-subset jump total (Section~4.3, Line 277)}
+
+\textit{Status: Adopted. The total (84) is inferred from 28 pieces $\times$ 3 jumps per piece per the default \texttt{min\_jumps=3} in \texttt{scripts/generate\_repeat\_test.py}; please verify against the actual generated benchmark and adjust if short pieces produced fewer than 3 jumps.}
+
+\textbf{Original:}
+\begin{quote}
+The \emph{random subset} comprises the remaining 28 pieces without repeats, each receiving at least 3 randomly placed jumps as a stress test.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+The \emph{random subset} comprises the remaining 28 pieces without repeats, each receiving 3 randomly placed jumps (84 jumps in total) as a stress test.
+\end{quote}
+
+\textbf{Rationale:}
+The repeat subset is reported with its precise jump count (131), but the random subset was previously described only as ``at least 3 per piece,'' which leaves reviewers to multiply and still leaves the real total unstated. Giving an explicit total (84) restores symmetry between the two subsets and lets readers gauge the relative weights of the two halves of Table~\ref{tab:jump}. Additionally, the wording ``at least 3'' is not quite accurate against the implementation: \texttt{generate\_repeat\_test.py} uses a fixed \texttt{min\_jumps=3} target, and some pieces may receive \emph{fewer} jumps if they are too short for three well-separated jump positions --- so ``at least'' is directionally wrong. Changing to a flat ``3 \ldots (84 in total)'' both adds the total and removes the directional mis-claim.
+
+\subsection*{Item 8: Fix unit mismatch in the latency metric (Section~4.3, Lines 281--282)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+\ldots \emph{mean recovery latency} (frames to first correct system prediction) \ldots
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+\ldots \emph{mean recovery latency} (time in seconds from audio resumption to the first correct system prediction) \ldots
+\end{quote}
+
+\textbf{Rationale:}
+The body text defines latency as ``\emph{frames} to first correct system prediction,'' but Table~\ref{tab:jump}'s column header is \texttt{Lat.\,(s)} and its values (0.72, 2.63, 4.31, 5.18, \ldots) are clearly in seconds, not frames (20-fps frames would be single- or double-digit integers). The Table~\ref{tab:jump} caption also writes ``mean time in seconds from audio resumption.'' The body text must match. The revision changes the unit to seconds and aligns the reference time (``from audio resumption'') with the caption, removing the internal inconsistency.
+
+\subsection*{Item 9: ``post-jump tracking error'' $\to$ ``post-jump tracking accuracy'' (Section~4.3, Line 282)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+\ldots and \emph{post-jump tracking error} (${\leq}\,1.0$\,s threshold in the 5\,s window after each jump).
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+\ldots and \emph{post-jump tracking accuracy} (${\leq}\,1.0$\,s threshold in the 5\,s window after each jump).
+\end{quote}
+
+\textbf{Rationale:}
+The metric is the fraction of post-jump onsets tracked within the ${\leq}\,1.0$\,s threshold, so \emph{higher is better}; in Table~\ref{tab:jump}, CODA (full) holds the largest values and is bolded. Calling this an ``error'' is the opposite polarity and contradicts both the bolding convention and the caption, which correctly writes ``fraction of onsets tracked \ldots (standard tracking accuracy applied to post-jump segments).'' The fix is a one-word change in the body text to match the caption and table semantics.
+
+\subsection*{Item 10: Remove the stale \texttt{\% TODO} comment (Section~4.3, Line 285)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original (source-level comment, not rendered in the PDF):}
+\begin{quote}\small\ttfamily
+\% TODO: fill in numbers after running experiments
+\end{quote}
+
+\textbf{Suggested revision:}
+Delete the line entirely.
+
+\textbf{Rationale:}
+The numbers in Table~\ref{tab:jump} are already filled in (values like .78, .91, 0.72 are clearly real experimental numbers rather than round placeholders), so the comment is out-of-date. Although the \texttt{\%} prefix prevents the comment from appearing in the rendered PDF, it is still present in the source. Automated reviewing tools and any human reviewer who inspects the source (for example for anonymization checks) will see it and may treat it as a signal that the submission is draft-quality. Removing it before submission is standard hygiene.
+
+\subsection*{Item 11: Add temporal priors to the ablation ranking (Section~4.4, Line 349)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+\ldots Beam search and cross-attention contribute the next-largest gains ($-.026$ and $-.019$ at ${\leq}\,0.10$\,s, respectively). Scheduled sampling has the smallest individual effect, \ldots
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+\ldots Beam search, cross-attention, and temporal priors contribute the next-largest gains ($-.026$, $-.019$, and $-.014$ at ${\leq}\,0.10$\,s, respectively). Scheduled sampling has the smallest individual effect, \ldots
+\end{quote}
+
+\textbf{Rationale:}
+The ablation table includes five variants, and the analysis currently names four of them (cascade, beam search, cross-attention, scheduled sampling) while silently skipping over temporal priors (${-}.014$). The skip creates a ranking gap that attentive readers will notice. Folding temporal priors into the existing ``next-largest gains'' enumeration, in descending order of effect size, restores completeness without adding a full new sentence. The phrasing does not attempt to interpret why temporal priors matter, which keeps the paragraph focused on the cascade as the headline claim.
+
+\subsection*{Item 12: Soften ``remains necessary'' for scheduled sampling (Section~4.4, Line 349)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+Scheduled sampling has the smallest individual effect, but remains necessary to close the train-inference routing gap.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+Scheduled sampling has the smallest individual effect, but provides a small, consistent improvement across all thresholds by closing the train-inference routing gap.
+\end{quote}
+
+\textbf{Rationale:}
+A $-.008$ drop at ${\leq}\,0.10$\,s is difficult to defend as ``necessary'': a reviewer can reasonably ask why a component that removes only 8 basis points of accuracy is indispensable. The honest claim is that scheduled sampling yields a \emph{small but consistent} improvement --- which is supported by the data (all five onset-threshold columns and both frame-accuracy columns show a monotonic drop when it is removed). Rephrasing to ``small, consistent improvement\ldots by closing the train-inference routing gap'' retains the mechanistic motivation without overclaiming importance.
+
+\subsection*{Item 13: Delete the commented-out Latency and Throughput block (Section~4.4, Lines 351--383)}
+
+\textit{Status: Adopted.}
+
+\textbf{Current state:}
+Lines 351--383 of the manuscript contain a fully commented-out \texttt{\textbackslash subsection\{Latency and Throughput\}} block, including an empty \texttt{Table~\textbackslash ref\{tab:latency\}} skeleton with every cell filled with ``\texttt{--}'', two \texttt{\% TODO} comments, and placeholder values such as \texttt{[--]\,ms ([--]\,fps)}.
+
+\textbf{Suggested revision:}
+Delete Lines 351--383 in their entirety.
+
+\textbf{Rationale:}
+The headline inference-speed claim --- ``each audio frame in 12.8\,ms (78.1\,fps), within the 50\,ms real-time budget at 20\,fps'' --- is already stated in Section~4.1.4 (Line 225), so the commented block was clearly a draft of a more detailed breakdown that the team decided not to ship. Leaving it commented rather than deleted invites three avoidable risks: (i) the TODO comments and ``\texttt{--}'' placeholders may be flagged by automated source scanners or by anonymization reviewers as draft-quality signals; (ii) the commented block is stale scaffolding that will need repeated re-synchronization if Section~4.1.4's numbers are updated; (iii) version control (\texttt{git}) is the correct place to preserve removed content for possible future use, not LaTeX comments. If the team later decides to ship the per-component latency table, the work of filling in profiled numbers will dominate; re-typing the table skeleton is trivial.
+
+
+\section*{Conclusion}
+
+\subsection*{Item 1: ``silence-triggered'' $\to$ ``silence-driven'' for full-paper consistency (Line 387)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+\ldots introduces a \emph{silence-triggered} break mode for jump recovery.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+\ldots introduces a \emph{silence-driven} break mode for jump recovery.
+\end{quote}
+
+\textbf{Rationale:}
+Every earlier mention of the mechanism uses ``silence-driven'' --- the Abstract (``A silence-driven mechanism enables jump recovery\ldots''), the Introduction prose (``silence-driven jump recovery mechanism''), and the Introduction contribution bullet (``A silence-driven jump recovery mechanism\ldots''). The single occurrence of ``silence-triggered'' in the Conclusion is semantically equivalent but cosmetically inconsistent. Aligning to ``silence-driven'' makes the terminology uniform across the whole paper.
+
+\subsection*{Item 2: Correct the MSMD citation (Line 388)}
+
+\textit{Status: Adopted. Citation changed to the original MSMD reference.}
+
+\textbf{Original:}
+\begin{quote}
+CODA is trained and evaluated exclusively on solo piano from the MSMD dataset~\cite{henkel2021real}.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+CODA is trained and evaluated exclusively on solo piano from the MSMD dataset~\cite{dorfer2018learning}.
+\end{quote}
+
+\textbf{Rationale:}
+Section~4.1.1 already makes the correct attribution: ``the MSMD dataset~\cite{dorfer2018learning}, using the preprocessed version provided by Henkel and Widmer~\cite{henkel2021real}.'' Here MSMD itself is the Dorfer et al.\ 2018 dataset; Henkel and Widmer's contribution is a preprocessing of MSMD, not MSMD itself. The Conclusion currently cites \texttt{henkel2021real} for ``the MSMD dataset,'' which contradicts Section~4.1.1 and misattributes the dataset to the wrong group. The one-key change restores consistency with Section~4.1.1 and with the historical origin of MSMD.
+
+\subsection*{Item 3: Tighten ``Despite the state-of-the-art performance achieved'' (Line 388)}
+
+\textit{Status: Adopted.}
+
+\textbf{Original:}
+\begin{quote}
+Despite the state-of-the-art performance achieved, several limitations remain.
+\end{quote}
+
+\textbf{Suggested revision:}
+\begin{quote}
+Despite achieving state-of-the-art performance, several limitations remain.
+\end{quote}
+
+\textbf{Rationale:}
+The original passive-adjectival construction ``the state-of-the-art performance achieved'' reads as an awkward nominalization of an active verb. The revised active-participial form (``Despite achieving state-of-the-art performance\ldots'') is more direct, shorter by one word, and reads as more idiomatic academic English, without altering meaning or hedging.
 
 \end{document}
 
