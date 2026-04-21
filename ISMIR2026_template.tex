@@ -78,6 +78,7 @@ Dorfer et al.\ \cite{dorfer2016towards} first showed that a multimodal convoluti
 \caption{Overview of the CODA architecture. A causal Mamba audio encoder and a shared CNN visual backbone feed into three cascaded stages: system selection, bar selection, and note localization. Beam search with learned temporal priors decodes the cascade over time.}
 \label{fig:overview}
 \end{figure*}
+
 \subsection{Handling Repeats and Jumps}
 Score discontinuities, including repeats, D.C., and coda jumps, pose a long-standing challenge for score following systems. In the symbolic domain, Nakamura et al.\ \cite{nakamura2015real} handle arbitrary repeats and skips through explicit state transitions. For offline audio-to-sheet-image synchronization, Shan and Tsai \cite{shan2020improved} proposed hierarchical DTW over learned audio and image features to handle repeats and jumps without requiring prior knowledge of jump locations. Morsi and Serra \cite{morsi2022bottlenecks} identified repeat handling as one of the key bottlenecks in audio-to-score alignment research. However, no existing real-time image-based score following method includes an explicit mechanism for recovering from score discontinuities during online tracking.
 
@@ -208,6 +209,11 @@ norm~1.0. Data augmentation includes jump augmentation (Section~\ref{subsec:jump
  
 CODA has 2.0M trainable parameters. All training and experiments are conducted on a single NVIDIA RTX A6000 GPU (48\,GB) with an Intel Xeon Gold 5218R CPU and 64\,GB RAM. At inference, CODA processes each audio frame in 12.8\,ms (78.1\,fps), within the 50\,ms real-time budget at 20\,fps.
 
+\subsection{Standard Tracking Results}\label{sec:tracking}
+ 
+Table~\ref{tab:main} compares CODA to the baselines on the two evaluation
+settings described in Section~\ref{sec:setup}. In Setting~I, CODA achieves .914 at ${\leq}\,0.10$\,s compared to .837 for CYOLO-SB, with bar accuracy improving from .890 to .975 and system accuracy from .963 to .991. In Setting~II, CODA achieves .743 at ${\leq}\,0.10$\,s versus .630 for CYOLO-SB.
+
 \begin{table}[h]
 \centering
 \caption{Score-following comparison. Each cell is the ratio of onsets tracked below the error threshold (higher is better); best in \textbf{bold}. $^\dagger$Proprietary training data; baseline numbers from~\cite{henkel2021real}.}
@@ -244,11 +250,7 @@ CODA (ours)  & \textbf{.721} & \textbf{.743} & \textbf{.883} & \textbf{.914} & \
 \bottomrule
 \end{tabular}
 \end{table}
-
-\subsection{Standard Tracking Results}\label{sec:tracking}
- 
-Table~\ref{tab:main} compares CODA to the baselines on the two evaluation
-settings described in Section~\ref{sec:setup}. In Setting~I, CODA achieves .914 at ${\leq}\,0.10$\,s compared to .837 for CYOLO-SB, with bar accuracy improving from .890 to .975 and system accuracy from .963 to .991. In Setting~II, CODA achieves .743 at ${\leq}\,0.10$\,s versus .630 for CYOLO-SB.
+\vspace{-0.7cm}
 
 \subsection{Jump Recovery Evaluation}\label{sec:jump}
  
@@ -328,7 +330,7 @@ Table~\ref{tab:ablation} shows the results. The largest degradation comes from r
 \section{Discussion and Conclusion}\label{sec:conclusion}
 This paper presents CODA, which formulates image-based score following as
 cascaded selection over known candidates and introduces a silence-driven
-break mode for jump recovery. We also contribute a repeat-aware jump test benchmark with manually annotated repeat structures for the MSMD test set, providing the first standardized evaluation protocol for discontinuity handling in image-based score following. Despite achieving state-of-the-art performance, several limitations remain. CODA is trained and evaluated exclusively on solo piano from the MSMD dataset~\cite{dorfer2018learning}. Larger datasets that pair real recordings with scanned scores would benefit not only this work but the field as a whole. The cascaded formulation itself is not limited to piano. Extending to other solo instruments is a natural first step. Chamber music and orchestral settings pose additional challenges due to timbral overlap, denser layouts, and multiple simultaneous parts. Finally, evaluation under real-world conditions, including scanned pages, commercial recordings, and live microphone input, is needed to assess the method under more realistic scenarios.
+break mode for jump recovery. We also contribute a repeat-aware jump test benchmark with manually annotated repeat structures for the MSMD test set, providing the first standardized evaluation protocol for discontinuity handling in image-based score following. Despite achieving state-of-the-art performance, several limitations remain. CODA is trained and evaluated exclusively on solo piano from the MSMD dataset~\cite{dorfer2018learning}. Larger datasets that pair real recordings with scanned scores would benefit not only this work but the field as a whole. Extending CODA to other solo instruments is a natural first step. Also, chamber music and orchestral settings pose additional challenges due to timbral overlap, denser layouts, and multiple simultaneous parts. Finally, evaluation under real-world conditions, including scanned pages, commercial recordings, and live microphone input, is needed to further assess the method.
 
 \bibliography{ISMIRtemplate}
 
