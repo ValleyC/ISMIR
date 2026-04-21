@@ -86,7 +86,7 @@ Score discontinuities, including repeats, D.C., and coda jumps, pose a long-stan
 
 \subsection{Problem Formulation}
 
-CODA operates on the entire score page. Layout metadata provides a finite set of systems and bars, along with their bounding boxes, for each page. The model selects among candidate systems and bars on the current page. When tracking reaches the last bar (or a customized number of bars) before the end of the current page, a page turn is triggered: the next page is loaded, and the model reinitializes its page-local state.
+CODA operates on the entire score page. Layout metadata provides a finite set of systems and bars, along with their bounding boxes, for each page. The model selects among candidate systems and bars on the current page.
 
 At each audio frame $t$, let $h_t = (x_{\le t},\, I)$ denote the causal audio history and the score image for the current page. The model predicts three quantities: the active system index $s_t$, the active bar index $b_t$ within that system, and a continuous note position $u_t = (c_x, c_y)$ expressed in bar-local coordinates. Rather than predicting all three independently, CODA factorizes the joint distribution as
 \begin{equation}
