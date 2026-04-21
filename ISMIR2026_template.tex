@@ -101,7 +101,7 @@ This cascaded factorization enforces valid geometric structure by construction: 
 
 Figure~\ref{fig:overview} illustrates CODA's overall architecture. CODA has two input streams: audio and visual.
  
-The audio stream is converted into a 78-dimensional log-filterbank at 20~frames per second. A two-layer causal Mamba encoder~\cite{gu2024mamba} processes each frame. Its recurrent state compactly accumulates the entire audio history up to frame~$t$, yielding a conditioning vector~$z_t$. In parallel, a sliding window $H_t$ of the most recent $L$ per-frame outputs is maintained. $z_t$ provides conditioning for the visual feature map (Eq.~\ref{eq:film}), while $H_t$ serves as the key and value source for cross-attention (Eq.~\ref{eq:crossattn}).
+The audio stream is converted into a 78-dimensional log-filterbank at 20~frames per second. A two-layer causal Mamba encoder~\cite{gu2024mamba} processes each frame. Its recurrent state compactly accumulates the entire audio history up to frame~$t$, yielding a conditioning vector~$z_t$. In parallel, a sliding window $H_t$ of the most recent $L$ per-frame outputs is maintained. $z_t$ provides conditioning for the visual feature map via FiLM, while $H_t$ serves as the key and value source for cross-attention.
  
 The score page image is processed by a CNN backbone with FiLM conditioning driven by~$z_t$ at deeper stages. The output of the CNN backbone is further processed by a Feature Pyramid Network (FPN) that produces a stride-8 feature map~$F$ (i.e., at one-eighth the spatial resolution of the input). This feature map is shared across all three cascade stages.
 
@@ -118,25 +118,9 @@ Given the shared stride-8 feature map~$F$ from the visual input stream and the M
 
 Recall that $H_t \in \mathbb{R}^{L \times d}$ is the sliding window of the most recent $L$ Mamba outputs, with $d$ the hidden dimension of the encoder. For each candidate region~$r$ (a system or bar bounding box from the score layout metadata), the pipeline proceeds as follows.
 
-First, Region of Interest (ROI) Align \cite{he2017mask} extracts a fixed-size feature patch $f_r$ from the stride-8 feature map:
-\begin{equation}\label{eq:roi}
-f_r = \mathrm{ROIAlign}(F,\, r).
-\end{equation}
-The extracted features $f_r$ are then modulated by the audio vector~$z_t$ via Feature-wise Linear Modulation (FiLM) \cite{perez2018film}:
-\begin{equation}\label{eq:film}
-\tilde{f}_r = \gamma(z_t) \odot f_r + \beta(z_t),
-\end{equation}
-where $\gamma$ and $\beta$ are learned linear projections and $\odot$ denotes element-wise multiplication. Convolutional layers further process the conditioned features:
-\begin{equation}\label{eq:conv}
-\hat{f}_r = \mathrm{Conv}(\tilde{f}_r).
-\end{equation}
-In the system and bar stages, the convolved features are refined by scaled dot-product cross-attention \cite{vaswani2017attention} over the audio buffer. The queries are formed by spatially flattening~$\hat{f}_r$, while the keys and values are shared projections of the hidden-state buffer~$H_t$:
-\begin{equation}\label{eq:crossattn}
-\bar{f}_r = \mathrm{softmax}\!\left(\frac{\mathrm{flat}(\hat{f}_r)\,(W_a H_t)^\top}{\sqrt{C}}\right) W_a H_t,
-\end{equation}
-where $W_a$ is a learned linear projection onto the $C$-dimensional attention space shared with~$\hat{f}_r$. This cross-attention lets each candidate region attend to fine-grained temporal patterns in the recent audio history.
+First, Region of Interest (ROI) Align \cite{he2017mask} extracts a fixed-size feature patch $f_r = \mathrm{ROIAlign}(F, r)$ from the stride-8 feature map. The extracted features are modulated by the audio vector~$z_t$ via Feature-wise Linear Modulation (FiLM) \cite{perez2018film} as $\tilde{f}_r = \gamma(z_t) \odot f_r + \beta(z_t)$, where $\gamma$ and $\beta$ are learned linear projections and $\odot$ denotes element-wise multiplication. Convolutional layers further process the conditioned features: $\hat{f}_r = \mathrm{Conv}(\tilde{f}_r)$. In the system and bar stages, the convolved features are refined by scaled dot-product cross-attention \cite{vaswani2017attention} over the audio buffer: $\bar{f}_r = \mathrm{softmax}\!\left(\mathrm{flat}(\hat{f}_r)\,(W_a H_t)^\top / \sqrt{C}\right) W_a H_t$, where queries are formed by spatially flattening $\hat{f}_r$, keys and values are shared projections of $H_t$, and $W_a$ is a learned linear projection onto the $C$-dimensional attention space shared with $\hat{f}_r$. This cross-attention lets each candidate region attend to fine-grained temporal patterns in the recent audio history.
 
-The system stage applies Eqs.~\ref{eq:roi}--\ref{eq:crossattn} to every system candidate on the page, producing~$\log p(s_t \mid h_t)$ via adaptive average pooling, a linear classifier, and softmax normalization. The bar stage applies the same pipeline with independent parameters to the bars within the selected system, yielding~$\log p(b_t \mid s_t, h_t)$. The note stage uses only Eqs.~\ref{eq:roi}--\ref{eq:conv} (no cross-attention at this stage) on the selected bar and regresses bar-local coordinates~$u_t = (c_x, c_y) \in [0,1]^2$ via sigmoid activation.
+The system stage applies the full pipeline above (ROI Align, FiLM, convolution, cross-attention) to every system candidate on the page, producing~$\log p(s_t \mid h_t)$ via adaptive average pooling, a linear classifier, and softmax normalization. The bar stage applies the same pipeline with independent parameters to the bars within the selected system, yielding~$\log p(b_t \mid s_t, h_t)$. The note stage applies only ROI Align, FiLM, and convolution (no cross-attention at this stage) on the selected bar and regresses bar-local coordinates~$u_t = (c_x, c_y) \in [0,1]^2$ via sigmoid activation.
 
 \subsection{Beam Search and Temporal Priors}
 
