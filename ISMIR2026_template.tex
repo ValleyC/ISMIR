@@ -269,7 +269,7 @@ CODA (ours)  & \textbf{.721} & \textbf{.743} & \textbf{.883} & \textbf{.914} & \
 \subsection{Standard Tracking Results}\label{sec:tracking}
  
 Table~\ref{tab:main} compares CODA to the baselines on the two evaluation
-settings described in Section~\ref{sec:setup}. In Setting~I, CODA achieves .914 at ${\leq}\,0.10$\,s compared to .837 for CYOLO-SB, with bar accuracy improving from .890 to .975 and system accuracy from .963 to .991. In Setting~II, CODA achieves .743 at ${\leq}\,0.10$\,s versus .630 for CYOLO-SB. Notably, CODA without proprietary data outperforms CYOLO-SB+A across all thresholds in both settings.
+settings described in Section~\ref{sec:setup}. In Setting~I, CODA achieves .914 at ${\leq}\,0.10$\,s compared to .837 for CYOLO-SB, with bar accuracy improving from .890 to .975 and system accuracy from .963 to .991. In Setting~II, CODA achieves .743 at ${\leq}\,0.10$\,s versus .630 for CYOLO-SB.
 
 \subsection{Jump Recovery Evaluation}\label{sec:jump}
  
@@ -313,7 +313,7 @@ Subset & Method & @1\,s & @2\,s & Lat.\,(s) & ${\leq}$1\,s \\
 \end{tabular}
 \end{table}
  
-Table~\ref{tab:jump} shows the results. Without a jump-handling mechanism, CYOLO-SB yields low recovery rates across both subsets. CODA without break mode also struggles because learned transition penalties resist large position changes. CODA with break mode substantially improves recovery. On the repeat subset, CODA recovers the correct system within 1\,s in 78\% of jumps. Recovery is higher on the repeat subset than the random subset (.78 vs.\ .64 at 1\,s), indicating that random jumps are more difficult to handle than patterned written discontinuities.
+Table~\ref{tab:jump} shows the results. Without a jump-handling mechanism, CYOLO-SB yields low recovery rates across both subsets. CODA without break mode also struggles because learned transition penalties resist large position changes. CODA with break mode substantially improves recovery. On the repeat subset, CODA recovers the correct system within 1\,s in 78\% of jumps. Recovery is higher on the repeat subset than the random subset (.78 vs.\ .64 at 1\,s).
 
 \subsection{Ablation Study}\label{sec:ablation}
 
@@ -344,7 +344,7 @@ w/o sched.\ sampling   & .888 & .906 & .951 & .978 & .968 & .989 \\
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:ablation} shows the results. The largest degradation comes from removing the cascade ($-.045$ at ${\leq}\,0.10$\,s, bar accuracy drops from .975 to .931), confirming that enforced geometric consistency is the most important component. Beam search, cross-attention, and temporal priors contribute the next-largest gains ($-.026$, $-.019$, and $-.014$ at ${\leq}\,0.10$\,s, respectively). Scheduled sampling has the smallest individual effect, but provides a small, consistent improvement across all thresholds by closing the train-inference routing gap.
+Table~\ref{tab:ablation} shows the results. The largest degradation comes from removing the cascade ($-.045$ at ${\leq}\,0.10$\,s, bar accuracy drops from .975 to .931). Beam search, cross-attention, and temporal priors contribute the next-largest gains ($-.026$, $-.019$, and $-.014$ at ${\leq}\,0.10$\,s, respectively). Scheduled sampling has the smallest individual effect, but consistently improves all thresholds.
 
 % \subsection{Latency and Throughput}\label{sec:latency}
 
