@@ -95,7 +95,7 @@ p(s_t, b_t, u_t \mid h_t) = {} & p(s_t \mid h_t) \cdot p(b_t \mid s_t, h_t) \\
 & \cdot\; p(u_t \mid b_t, s_t, h_t).
 \end{split}
 \end{equation}
-This cascaded factorization enforces valid geometric structure by construction: the predicted bar always lies within the predicted system, and the predicted note always lies within the predicted bar. It also reduces the decision space stage by stage, which is especially helpful in repetitive passages that contain similar content across multiple systems or bars.
+This cascaded factorization enforces valid geometric structure by construction: the predicted bar always lies within the predicted system, and the predicted note always lies within the predicted bar.
 
 \subsection{Model Architecture}
 
@@ -199,7 +199,7 @@ Audio is processed at 22,050~Hz with a 2048-sample STFT (hop size 1\,102,
 ${\approx}\,$20~frames per second) and a 78-bin log-filterbank spanning
 60\,Hz--6\,kHz. Score pages are converted to grayscale and scaled to a fixed
 width of 416 pixels. The Mamba audio encoder has two layers with hidden
-dimension~64, state dimension~16, convolution width~4, expansion factor~2, and projects to a 128-dimensional conditioning vector~$z_t$. Both the system and bar selection heads use cross-attention with four heads over an audio buffer of 64 frames. The beam search retains $k{=}3$ system and $m{=}3$ bar candidates per frame. Break mode uses an energy onset threshold of~0.1, release threshold of~0.25, a silence onset of 3~frames (${\approx}\,$150\,ms), and a grace window of 8~frames (${\approx}\,$400\,ms). During break, transition penalties are fully suppressed (multiplied by zero), and the beam is expanded to all systems on the page with $m{=}3$ bars per system.
+dimension~64, state dimension~16, convolution width~4, expansion factor~2, and projects to a 128-dimensional conditioning vector~$z_t$. Both the system and bar selection heads use cross-attention with four heads over an audio buffer of 64 frames. The beam search retains $k{=}3$ system and $m{=}3$ bar candidates per frame. Break mode uses an energy onset threshold of~0.1, release threshold of~0.25, a silence onset of 3~frames (${\approx}\,$150\,ms), and a grace window of 8~frames (${\approx}\,$400\,ms). During break, priors are multiplied by zero and the beam covers all systems, with $m{=}3$ bars per system.
  
 Training follows the two-phase curriculum described in
 Section~\ref{sec:method}. Phase~1 trains for 30~epochs with a learning rate of
@@ -297,7 +297,7 @@ Subset & Method & @1\,s & @2\,s & Lat.\,(s) & ${\leq}$1\,s \\
 \end{tabular}
 \end{table}
  
-Table~\ref{tab:jump} shows the results. Without a jump-handling mechanism, CYOLO-SB yields low recovery rates across both subsets. CODA without break mode also struggles because learned transition penalties resist large position changes. CODA with break mode substantially improves recovery. On the repeat subset, CODA recovers the correct system within 1\,s in 78\% of jumps. Recovery is higher on the repeat subset than the random subset (.78 vs.\ .64 at 1\,s).
+Table~\ref{tab:jump} shows the results. Without a jump-handling mechanism, CYOLO-SB yields low recovery rates across both subsets. CODA without break mode also struggles because learned transition penalties resist large position changes. On the repeat subset, CODA recovers the correct system within 1\,s in 78\% of jumps. Recovery is higher on the repeat subset than the random subset (.78 vs.\ .64 at 1\,s).
 
 \subsection{Ablation Study}\label{sec:ablation}
 
