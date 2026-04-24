@@ -16,6 +16,10 @@
 
 \definecolor{rowhl}{HTML}{E8F0FE}    % light blue for "ours" rows
 \definecolor{sechl}{HTML}{F0F0F0}    % subtle gray for section headers
+\definecolor{best}{HTML}{B30000}      % strong crimson for best result
+\definecolor{second}{HTML}{0B3D91}   % deep navy for second best
+\newcommand{\first}[1]{\textcolor{best}{\textbf{#1}}}
+\newcommand{\second}[1]{\textcolor{second}{\underline{#1}}}
 
 \usepackage{caption}
 \captionsetup{font=small}
@@ -42,14 +46,14 @@
 \maketitle
 
 \begin{abstract}
-Real-time score following from sheet images remains challenging because the model must process streaming audio while resolving highly repetitive visual patterns under strict latency constraints. Recent image-based methods have attempted to use multi-resolution prediction by simultaneously predicting the positions of the active system, bar, and note. However, their predictions across these different levels of notation are independent, which makes the predictions unstable and introduces unnecessary extra search space for bar- and note-level predictions. Most existing methods also lack mechanisms to recover from score discontinuities, such as repeats, da capo (D.C.), or coda jumps. This paper proposes CODA, to the best of our knowledge, the first real-time score following system that addresses both gaps. CODA explicitly exploits the cascaded structure of music scores: it first selects the active system, then the active bar within it, and finally the active note within the selected bar. This enforces prediction consistency across resolutions. A silence-driven mechanism enables jump recovery whenever a pause is detected, indicating a score discontinuity. CODA combines a convolutional neural network (CNN) visual backbone with a causal Mamba audio encoder. At each frame, visual features of candidate regions are extracted and modulated by audio context via Feature-wise Linear Modulation (FiLM) conditioning and cross-attention over recent audio history. The resulting scores are decoded over time using beam search with learned temporal transition priors. Both training and evaluation are based on the Multimodal Sheet Music Dataset (MSMD) piano benchmarks. CODA achieves state-of-the-art tracking and discontinuity-recovery accuracy under real-time audio throughput. Code is available at \url{https://anonymous.4open.science/r/CODA80}.
+Real-time score following from sheet images remains challenging because the model must process streaming audio while resolving highly repetitive visual patterns under strict latency constraints. Recent image-based methods have attempted to use multi-resolution prediction by simultaneously predicting the positions of the active system, bar, and note. However, their predictions across these different levels of notation are independent, which makes the predictions unstable and introduces unnecessary extra search space for bar- and note-level predictions. Most existing methods also lack mechanisms to recover from score discontinuities, such as repeats, da capo (D.C.), or coda jumps. This paper proposes CODA, to the best of our knowledge, the first real-time score following system that addresses both gaps. CODA explicitly exploits the cascaded structure of music scores: it first selects the active system, then the active bar within it, and finally the active note within the selected bar. This enforces prediction consistency across resolutions. A silence-driven break mode enables recovery from arbitrary score discontinuities without requiring knowledge of the repeat structure. Evaluated on the Multimodal Sheet Music Dataset (MSMD) piano benchmarks, CODA achieves state-of-the-art tracking accuracy and discontinuity-recovery performance under real-time throughput. Code is available at \url{https://anonymous.4open.science/r/CODA80}.
 \end{abstract}
 
 \section{Introduction}\label{sec:introduction}
 
 Real-time score following is the process of aligning a live performance with the corresponding music score as the music proceeds in real time. It is fundamental for downstream applications, including automatic accompaniment, automatic page-turning, synchronized score display, and many other interactive music systems \cite{orio2003score,dannenberg2006music}. Classical approaches use online Dynamic Time Warping (DTW) or probabilistic state models to achieve real-time alignment \cite{dixon2005line,cont2010coupled,nakamura2016real}. However, these methods require a symbolic score such as MIDI or MusicXML, which is not always available.
 
-Image-based score following has emerged over the past decade by working directly on sheet images. Early work classified positions into coarse staff-level buckets on small local image crops \cite{dorfer2016towards}, limiting both spatial resolution and the field of view. Reinforcement-learning methods widened the view to score strips but still operated on narrow windows, making re-engagement difficult when the agent drifted off track \cite{dorfer2018rl,henkel2019score}. Full-page segmentation addressed the field-of-view limitation by predicting a pixel-level heatmap over the entire page \cite{henkel2020learning}, but only localized at the note level without explicit system or bar tracking. The most recent of these image-based methods proposed multi-resolution detection with You Only Look Once (YOLO)-based object detection frameworks \cite{henkel2021real}. This work predicts the positions of systems, bars, and notes simultaneously using three independent output heads. However, there are no constraints or cascaded structures among these predictions. Nothing enforces that the predicted note lies within the predicted bar, or that the predicted bar lies within the predicted system. The model implicitly learns structural consistency, and disagreements among the three prediction levels are often observed.
+Image-based score following has emerged over the past decade by working directly on sheet images. Early work classified positions into coarse staff-level buckets on small local image crops \cite{dorfer2016towards}, limiting both spatial resolution and the field of view. Reinforcement-learning methods widened the view to score strips but still operated on narrow windows, making re-engagement difficult when the tracker drifted off track \cite{dorfer2018rl,henkel2019score}. Full-page segmentation addressed the field-of-view limitation by predicting a pixel-level heatmap over the entire page \cite{henkel2020learning}, but only localized at the note level without explicit system or bar tracking. The most recent of these image-based methods proposed multi-resolution detection with You Only Look Once (YOLO)-based object detection frameworks \cite{henkel2021real}. This work predicts the positions of systems, bars, and notes simultaneously using three independent output heads. However, there are no constraints or cascaded structures among these predictions. Nothing enforces that the predicted note lies within the predicted bar, or that the predicted bar lies within the predicted system. The model implicitly learns structural consistency, and disagreements among the three prediction levels are often observed.
 
 This independence causes another problem. Because each head independently predicts over the full page, the bar and note heads must search all candidates on the page, increasing the likelihood of errors and instabilities. A cascaded structure would narrow the search at each stage: once the system is selected, only bars within that system are candidates; once a bar is selected, the candidate note positions are confined to that bar. More fundamentally, this method frames score tracking as an object detection problem. It detects from scratch at every audio frame, predicting bounding boxes as if the system and bar locations were unknown. However, in music performances, the score is static, and all candidate positions are known in advance. Detection is therefore unnecessary. The real task is to select which of the known candidates is currently being played. This formulation is feasible whenever score layout information is available. 
 
@@ -60,7 +64,7 @@ This paper proposes CODA, a cascaded online alignment framework that addresses t
 \item A cascaded selection-and-regression formulation that enforces geometric consistency across system, bar, and note predictions while narrowing the search space at each stage.
 \item A causal streaming architecture combining Mamba audio encoding, FiLM conditioning, cross-attention, and beam search with learned temporal priors.
 \item A silence-driven jump recovery mechanism for arbitrary score discontinuities, including repeats, D.C., and coda jumps, without requiring prior knowledge of the score's repeat structure.
-\item A repeat-aware jump test benchmark with manually annotated repeat structures for all 94 pieces in the MSMD test set, providing the first standardized evaluation protocol for discontinuity handling in image-based score following.
+\item A repeat-aware jump test benchmark with both annotated and random music discontinuities for all 94 pieces in the MSMD test set, providing the first standardized evaluation protocol for discontinuity handling in image-based score following.
 \end{itemize}
 
 % The remainder of this paper is organized as follows. Section~\ref{sec:related} reviews symbolic and image-based score following methods as well as prior work on handling repeats and jumps. Section~\ref{sec:method} introduces the CODA methodology in detail. Section~\ref{sec:eval} presents the evaluation protocol and results. Section~\ref{sec:conclusion} discusses limitations and future directions.
@@ -99,14 +103,12 @@ This cascaded factorization enforces valid geometric structure by construction: 
 
 \subsection{Model Architecture}
 
-Figure~\ref{fig:overview} illustrates CODA's overall architecture. CODA has two input streams: audio and visual.
+Figure~\ref{fig:overview} illustrates CODA's overall architecture. CODA has two input streams: audio and visual. The audio stream is converted into a 78-dimensional log-filterbank at 20~frames per second. A two-layer causal Mamba encoder~\cite{gu2024mamba} processes each frame. Its recurrent state compactly accumulates the entire audio history up to frame~$t$, yielding a conditioning vector~$z_t$. In parallel, a sliding window $H_t$ of the most recent $L$ per-frame outputs is maintained. $z_t$ provides conditioning for the visual feature map via FiLM, while $H_t$ serves as the key and value source for cross-attention between candidate visual regions and the recent audio history (Section~\ref{sec:cascade}).
  
-The audio stream is converted into a 78-dimensional log-filterbank at 20~frames per second. A two-layer causal Mamba encoder~\cite{gu2024mamba} processes each frame. Its recurrent state compactly accumulates the entire audio history up to frame~$t$, yielding a conditioning vector~$z_t$. In parallel, a sliding window $H_t$ of the most recent $L$ per-frame outputs is maintained. $z_t$ provides conditioning for the visual feature map via FiLM, while $H_t$ serves as the key and value source for cross-attention.
- 
-The score page image is processed by a CNN backbone with FiLM conditioning driven by~$z_t$ at deeper stages. The output of the CNN backbone is further processed by a Feature Pyramid Network (FPN) that produces a stride-8 feature map~$F$ (i.e., at one-eighth the spatial resolution of the input). This feature map is shared across all three cascade stages.
+The visual stream takes the score page image as input. The score page image is processed by a CNN backbone with FiLM conditioning driven by~$z_t$ at deeper stages. The output of the CNN backbone is further processed by a Feature Pyramid Network (FPN) that produces a stride-8 feature map~$F$ (i.e., at one-eighth the spatial resolution of the input). This feature map is shared across all three cascade stages (Section~\ref{sec:cascade}).
 
 \subsection{Cascaded Selection}
-
+\label{sec:cascade}
 Given the shared stride-8 feature map~$F$ from the visual input stream and the Mamba encoder outputs from the audio input stream, CODA applies three cascaded stages to localize the active position on the score page. Each stage narrows the spatial scope before proceeding to the next stage. All three stages share a common processing pipeline, with stage-specific variations detailed below. Figure~\ref{fig:tracking} illustrates the output on a real score page: the selected system (green), bar (blue), and note position (red) are each geometrically contained within the previous level.
 
 \begin{figure}[h]
@@ -116,7 +118,7 @@ Given the shared stride-8 feature map~$F$ from the visual input stream and the M
 \label{fig:tracking}
 \end{figure}
 
-Recall that $H_t \in \mathbb{R}^{L \times d}$ is the sliding window of the most recent $L$ Mamba outputs, with $d$ the hidden dimension of the encoder. For each candidate region~$r$ (a system or bar bounding box from the score layout metadata), the pipeline proceeds as follows.
+Recall that $H_t \in \mathbb{R}^{L \times d}$ is the sliding window of the most recent $L$ Mamba outputs, with $d$ as the hidden dimension of the encoder. For each candidate region~$r$ (a system or bar bounding box from the score layout metadata), the pipeline proceeds as follows.
 
 First, Region of Interest (ROI) Align \cite{he2017mask} extracts a fixed-size feature patch $f_r = \mathrm{ROIAlign}(F, r)$ from the stride-8 feature map. The extracted features are modulated by the audio vector~$z_t$ via FiLM as $\tilde{f}_r = \gamma(z_t) \odot f_r + \beta(z_t)$, where $\gamma$ and $\beta$ are learned linear projections and $\odot$ denotes element-wise multiplication. Convolutional layers further process the conditioned features: $\hat{f}_r = \mathrm{Conv}(\tilde{f}_r)$. In the system and bar stages, the convolved features are refined by scaled dot-product cross-attention \cite{vaswani2017attention} over the audio buffer: $\bar{f}_r = \mathrm{softmax}\!\left(\mathrm{flat}(\hat{f}_r)\,(W_a H_t)^\top / \sqrt{C}\right) W_a H_t$, where queries are formed by spatially flattening $\hat{f}_r$, keys and values are shared projections of $H_t$, and $W_a$ is a learned linear projection onto the $C$-dimensional attention space shared with $\hat{f}_r$. This cross-attention lets each candidate region attend to fine-grained temporal patterns in the recent audio history.
 
@@ -154,18 +156,18 @@ where $\sigma_s$, $\sigma_b$, and $\sigma_n$ are learnable task-specific uncerta
 \subsection{Jump Detection and Recovery}
 \label{subsec:jump}
 
-\begin{figure}[t]
+Score discontinuities such as repeats, D.C., and coda jumps cause the active position to move non-monotonically. Rather than modeling each type separately, CODA treats all discontinuities as arbitrary position changes preceded by silence. This assumption is grounded in the observation of Nakamura et al.~\cite{nakamura2016real}. This also covers unscripted performer errors. CODA realizes this with two mechanisms demonstrated in Figure~\ref{fig:jump_recovery}.
+
+\begin{figure}[h]
 \centering
 \includegraphics[width=\columnwidth]{figures/jump_recovery.pdf}
 \caption{Jump recovery mechanism. (a)~Jump augmentation during training. (b)~Break mode at inference.}
 \label{fig:jump_recovery}
 \end{figure}
 
-Score discontinuities such as repeats, D.C., and coda jumps cause the active position to move non-monotonically. Rather than modeling each type separately, CODA treats all discontinuities as arbitrary position changes preceded by silence. This assumption is grounded in the observation of Nakamura et al.~\cite{nakamura2016real}. This also covers unscripted performer errors. CODA realizes this with two mechanisms (Figure~\ref{fig:jump_recovery}).
+The jump-augmented training is illustrated in Figure~\ref{fig:jump_recovery}(a). Jump augmentation splices each sample with a controllable probability: a short silence (3--12 frames) is inserted, followed by audio from a randomly selected destination on the same or a different page. For same-page jumps, the previous system and bar labels are frozen at the source position, forcing the model to relocalize from audio evidence against a biased temporal prior.
  
-The jump-augmented training is illustrated in Figure~\ref{fig:jump_recovery}(a). \emph{Jump augmentation} splices each sample with a controllable probability: a short silence (3--12 frames) is inserted, followed by audio from a randomly selected destination on the same or a different page. For same-page jumps, the previous system and bar labels are frozen at the source position, forcing the model to relocalize from audio evidence against a biased temporal prior.
- 
-At inference, \emph{break mode} monitors waveform energy with a hysteresis rule. As presented in Figure~\ref{fig:jump_recovery}(b), when energy stays below a threshold for several consecutive frames, the tracker enters a break state: transition penalties are suppressed, the system beam is widened to cover all candidates, and the committed position is frozen. When energy rises again, penalties remain suppressed for a short grace window during which the tracker relocalizes to the jump destination. The Mamba hidden state is preserved throughout, maintaining temporal continuity across the silence gap.
+At inference time, the break mode monitors waveform energy using a hysteresis rule. As presented in Figure~\ref{fig:jump_recovery}(b), when energy stays below a threshold for several consecutive frames, the tracker enters a break state: transition penalties are suppressed, the system beam is widened to cover all candidates, and the committed position is frozen. When energy rises again, penalties remain suppressed for a short grace window during which the tracker relocalizes to the jump destination. The Mamba hidden state is preserved throughout, maintaining temporal continuity across the silence gap.
 
 \section{Experiments and Results}\label{sec:eval}
 
@@ -216,7 +218,7 @@ settings described in Section~\ref{sec:setup}. In Setting~I, CODA achieves .914 
 
 \begin{table}[h]
 \centering
-\caption{Score-following comparison. Each cell is the ratio of onsets tracked below the error threshold (higher is better); best in \textbf{bold}. $^\dagger$Proprietary training data; baseline numbers from~\cite{henkel2021real}.}
+\caption{Score-following comparison. Each cell is the ratio of onsets tracked below the error threshold (higher is better); best in \first{red bold}, second best in \second{blue underline}. $^\dagger$Proprietary training data; baseline numbers from~\cite{henkel2021real}.}
 \label{tab:main}
 \scriptsize
 \setlength{\tabcolsep}{2.5pt}
@@ -231,11 +233,11 @@ Method & ${\leq}$.05 & ${\leq}$.10 & ${\leq}$.50 & ${\leq}$1.0 & ${\leq}$5.0 & B
 MM-Loc~\cite{dorfer2016towards}       & .707 & .747 & .839 & .855 & .917 & --   & --   \\
 RL~\cite{henkel2019score}             & .411 & .435 & .776 & .856 & .971 & --   & --   \\
 CUNet~\cite{henkel2020learning}       & .726 & .750 & .855 & .885 & .937 & --   & --   \\
-CYOLO~\cite{henkel2021multi}          & .830 & .842 & .885 & .909 & .984 & --   & --   \\
-CYOLO-SB~\cite{henkel2021real}        & .820 & .837 & .893 & .912 & .983 & .890 & .963 \\
-CYOLO-SB+A$^\dagger$~\cite{henkel2021real} & .846 & .861 & .908 & .927 & .984 & .892 & .956 \\
+CYOLO~\cite{henkel2021multi}          & .830 & .842 & .885 & .909 & \second{.984} & --   & --   \\
+CYOLO-SB~\cite{henkel2021real}        & .820 & .837 & .893 & .912 & .983 & .890 & \second{.963} \\
+CYOLO-SB+A$^\dagger$~\cite{henkel2021real} & \second{.846} & \second{.861} & \second{.908} & \second{.927} & \second{.984} & \second{.892} & .956 \\
 \rowcolor{rowhl}
-CODA (ours)  & \textbf{.897} & \textbf{.914} & \textbf{.955} & \textbf{.981} & \textbf{.996} & \textbf{.975} & \textbf{.991} \\
+CODA (ours)  & \first{.897} & \first{.914} & \first{.955} & \first{.981} & \first{.996} & \first{.975} & \first{.991} \\
 \midrule
 \rowcolor{sechl}
 \multicolumn{8}{@{}l}{\textit{Setting II\!: Synthetic images -- Real audio recordings}} \\
@@ -244,9 +246,9 @@ RL~\cite{henkel2019score}             & .185 & .200 & .476 & .603 & .901 & --   
 CUNet~\cite{henkel2020learning}       & .113 & .125 & .224 & .266 & .443 & --   & --   \\
 CYOLO~\cite{henkel2021multi}          & .563 & .581 & .712 & .749 & .919 & --   & --   \\
 CYOLO-SB~\cite{henkel2021real}        & .610 & .630 & .799 & .832 & .960 & .829 & .917 \\
-CYOLO-SB+A$^\dagger$~\cite{henkel2021real} & .682 & .706 & .865 & .891 & .981 & .865 & .941 \\
+CYOLO-SB+A$^\dagger$~\cite{henkel2021real} & \second{.682} & \second{.706} & \second{.865} & \second{.891} & \second{.981} & \second{.865} & \second{.941} \\
 \rowcolor{rowhl}
-CODA (ours)  & \textbf{.721} & \textbf{.743} & \textbf{.883} & \textbf{.914} & \textbf{.987} & \textbf{.891} & \textbf{.953} \\
+CODA (ours)  & \first{.721} & \first{.743} & \first{.883} & \first{.914} & \first{.987} & \first{.891} & \first{.953} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -279,15 +281,15 @@ Subset & Method & @1\,s & @2\,s & Lat.\,(s) & ${\leq}$1\,s \\
 \midrule
 \multirow{3}{*}{Repeat}
  & CYOLO-SB       & .12   & .20   & 4.31   & .35 \\
- & CODA w/o break & .29   & .44   & 2.63   & .54 \\
+ & CODA w/o break & \second{.29}   & \second{.44}   & \second{2.63}   & \second{.54} \\
 \rowcolor{rowhl}
- & CODA (full)    & \textbf{.78} & \textbf{.91} & \textbf{0.72} & \textbf{.82} \\
+ & CODA (full)    & \first{.78} & \first{.91} & \first{0.72} & \first{.82} \\
 \midrule
 \multirow{3}{*}{Random}
  & CYOLO-SB       & .08   & .15   & 5.18   & .27 \\
- & CODA w/o break & .23   & .38   & 3.07   & .46 \\
+ & CODA w/o break & \second{.23}   & \second{.38}   & \second{3.07}   & \second{.46} \\
 \rowcolor{rowhl}
- & CODA (full)    & \textbf{.64} & \textbf{.80} & \textbf{1.24} & \textbf{.71} \\
+ & CODA (full)    & \first{.64} & \first{.80} & \first{1.24} & \first{.71} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -297,6 +299,8 @@ Table~\ref{tab:jump} shows the results. Without a jump-handling mechanism, CYOLO
 \subsection{Ablation Study}\label{sec:ablation}
 
 To isolate the contribution of each component, we evaluate five ablated variants of CODA on Setting~I (synthetic images and audio). Each variant removes or disables a single component while keeping all others unchanged.
+
+Table~\ref{tab:ablation} shows the results. The largest degradation comes from removing the cascade ($-.045$ at ${\leq}\,0.10$\,s, bar accuracy drops from .975 to .931). Beam search, cross-attention, and temporal priors contribute the next-largest gains ($-.026$, $-.019$, and $-.014$ at ${\leq}\,0.10$\,s, respectively). Scheduled sampling has the smallest individual effect, but consistently improves all thresholds.
 
 \begin{table}[h]
 \centering
@@ -312,18 +316,16 @@ removes one component from the full model.}
 Variant & ${\leq}$.05 & ${\leq}$.10 & ${\leq}$.50 & ${\leq}$1.0 & Bar & Sys \\
 \midrule
 \rowcolor{rowhl}
-CODA (full)            & \textbf{.897} & \textbf{.914} & \textbf{.955} & \textbf{.981} & \textbf{.975} & \textbf{.991} \\
+CODA (full)            & \first{.897} & \first{.914} & \first{.955} & \first{.981} & \first{.975} & \first{.991} \\
 \midrule
 w/o cascade            & .851 & .869 & .923 & .952 & .931 & .967 \\
 w/o cross-attention    & .878 & .895 & .943 & .972 & .958 & .985 \\
 w/o beam search        & .870 & .888 & .938 & .968 & .949 & .982 \\
 w/o temporal priors    & .882 & .900 & .948 & .975 & .963 & .988 \\
-w/o sched.\ sampling   & .888 & .906 & .951 & .978 & .968 & .989 \\
+w/o sched.\ sampling   & \second{.888} & \second{.906} & \second{.951} & \second{.978} & \second{.968} & \second{.989} \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-Table~\ref{tab:ablation} shows the results. The largest degradation comes from removing the cascade ($-.045$ at ${\leq}\,0.10$\,s, bar accuracy drops from .975 to .931). Beam search, cross-attention, and temporal priors contribute the next-largest gains ($-.026$, $-.019$, and $-.014$ at ${\leq}\,0.10$\,s, respectively). Scheduled sampling has the smallest individual effect, but consistently improves all thresholds.
 
 % \subsection{Latency and Throughput}\label{sec:latency}
 
