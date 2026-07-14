@@ -1,0 +1,138 @@
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage[hidelinks]{hyperref}
+\usepackage{booktabs}
+
+\title{Review of the References Section\\\large CODA: Cascaded Online Discontinuity-Aware Alignment for Real-Time Score Following}
+\author{}
+\date{July 14, 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Summary}
+
+The References section is structurally sound. All 25 bibliography entries are cited in the manuscript, every citation key resolves to an entry, and no duplicate bibliography keys or undefined citations were found. The bibliography files in the main, arXiv-submission, and clean-upload directories are identical.
+
+All 25 cited works were checked by matching their titles, authors, years, and publication venues against publisher, conference, or proceedings records. All of them are real publications; no fabricated or substantially misattributed reference was identified. The issues below concern formatting, completeness, and consistency rather than the existence of the cited works.
+
+\section{Issues Requiring Correction}
+
+\subsection{Incorrect capitalization of ``Mask R-CNN''}
+
+The title in the BibTeX source is currently written as:
+
+\begin{verbatim}
+title={Mask R-CNN},
+\end{verbatim}
+
+With the IEEEtran bibliography style, unprotected capital letters in titles may be converted to lowercase. Consequently, the compiled bibliography displays ``Mask r-cnn.'' The acronym should be protected with braces:
+
+\begin{verbatim}
+title={{Mask R-CNN}},
+\end{verbatim}
+
+This is the clearest visible error in the compiled References section and should be corrected before submission.
+
+\section{Recommended Metadata Corrections}
+
+\subsection{Peter et al. (SMC 2025)}
+
+The reference is genuine, but the current entry omits the conference edition, page range, and DOI. The paper appeared in the Proceedings of the 22nd Sound and Music Computing Conference, pages 190--196. A more complete entry is:
+
+\begin{verbatim}
+@inproceedings{peter2025pairing,
+  title={Pairing Real-Time Piano Transcription with
+         Symbol-level Tracking for Precise and Robust
+         Score Following},
+  author={Peter, Silvan and Hu, Patricia and Widmer, Gerhard},
+  booktitle={Proceedings of the 22nd Sound and Music
+             Computing Conference (SMC)},
+  pages={190--196},
+  year={2025},
+  doi={10.5281/zenodo.15843588}
+}
+\end{verbatim}
+
+Official record: \url{https://smc25.iem.sh/contributions/pairing-real-time-piano-transcription/}.
+
+\subsection{Perez et al. (FiLM)}
+
+The current entry is correct but incomplete because it omits the page range. The DOI may also be included if DOI fields are to be used consistently:
+
+\begin{verbatim}
+pages={3942--3951},
+doi={10.1609/aaai.v32i1.11671},
+\end{verbatim}
+
+Official record: \url{https://ojs.aaai.org/index.php/AAAI/article/view/11671}.
+
+\subsection{Korzeniowski et al. (ICMC 2013)}
+
+The venue is currently given only as \texttt{ICMC}, which produces the unusually terse output ``in ICMC.'' For consistency with the other conference references, use the full proceedings title:
+
+\begin{verbatim}
+booktitle={Proceedings of the 39th International Computer
+           Music Conference (ICMC)},
+\end{verbatim}
+
+Official proceedings record: \url{https://quod.lib.umich.edu/i/icmc/bbp2372.2013?rgn=main;view=fulltext}.
+
+\subsection{Gu and Dao (Mamba)}
+
+The cited work is real and was published at COLM 2024. The current venue, ``Conference on Language Modeling (COLM),'' is acceptable, but the following form is more precise:
+
+\begin{verbatim}
+booktitle={Proceedings of the First Conference on Language
+           Modeling (COLM)},
+url={https://openreview.net/forum?id=tEYskw1VY2},
+\end{verbatim}
+
+Care should be taken not to use the separate OpenReview page for the earlier ICLR submission when citing the final COLM publication.
+
+\section{Minor Consistency Concerns}
+
+\begin{enumerate}
+  \item The name ``Jan Haji\v{c} Jr.'' currently renders as ``J. Haji\v{c}, jr.'' This is not a factual error, but the suffix capitalization and punctuation should be checked against the author's preferred form.
+
+  \item Some entries contain complete page ranges, while several entries with readily available page information do not. Adding the missing pages would improve consistency and make the references easier to verify.
+
+  \item DOI and URL fields are omitted from most entries. This is not an error under the current ISMIR/IEEEtran style. If DOI fields are added, it would be preferable to apply the policy consistently rather than adding them to only one or two entries.
+
+  \item Abbreviated venue names such as \texttt{IJCAI} and \texttt{ICMC} are inconsistent with the full conference names used for ISMIR, EUSIPCO, CVPR, and ICCV. Expanding these venue names would improve presentation.
+\end{enumerate}
+
+\section{Authenticity Check}
+
+The two recent references that might otherwise raise questions were specifically confirmed:
+
+\begin{itemize}
+  \item \textbf{Park et al., ``Matchmaker''}: published at ISMIR 2025, pages 91--99, DOI \texttt{10.5281/zenodo.17811551}. Record: \url{https://zenodo.org/records/17811551}.
+
+  \item \textbf{Peter et al., ``Pairing Real-Time Piano Transcription''}: published at SMC 2025, with an official conference record and DOI \texttt{10.5281/zenodo.15843588}.
+\end{itemize}
+
+The remaining references were likewise located in the relevant NIME, IJCAI, IEEE, ISMIR, TISMIR, ICMC, EUSIPCO, Frontiers, AAAI, CVPR/ICCV, NeurIPS, or COLM records. No reference needs to be removed on authenticity grounds.
+
+\section{Priority of Revisions}
+
+\begin{tabular}{@{}p{0.18\textwidth}p{0.74\textwidth}@{}}
+\toprule
+\textbf{Priority} & \textbf{Revision} \\
+\midrule
+Required & Protect the capitalization of \textit{Mask R-CNN}. \\
+Strongly recommended & Complete the SMC 2025 and FiLM records. \\
+Recommended & Expand the ICMC venue and clarify the COLM venue. \\
+Optional & Standardize DOI/URL usage, page ranges, venue names, and the ``Jr.'' suffix. \\
+\bottomrule
+\end{tabular}
+
+\section{Conclusion}
+
+There are no missing citations, unresolved references, duplicate bibliography keys, or fabricated works. The References section is suitable in substance, but the capitalization error and incomplete metadata identified above should be corrected to improve the accuracy and professionalism of the final paper.
+
+\end{document}
