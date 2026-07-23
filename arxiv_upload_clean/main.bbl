@@ -27,7 +27,7 @@ N.~Orio, S.~Lemouton, and D.~Schwarz, ``Score following: State of the art and ne
 R.~B. Dannenberg and C.~Raphael, ``Music score alignment and computer accompaniment,'' \emph{Communications of the ACM}, vol.~49, no.~8, pp. 38--43, 2006.
 
 \bibitem{dixon2005line}
-S.~Dixon, ``An on-line time warping algorithm for tracking musical performances,'' in \emph{IJCAI}, 2005, pp. 1727--1728.
+S.~Dixon, ``An on-line time warping algorithm for tracking musical performances,'' in \emph{Proceedings of the 19th International Joint Conference on Artificial Intelligence (IJCAI)}, 2005, pp. 1727--1728.
 
 \bibitem{cont2010coupled}
 A.~Cont, ``A coupled duration-focused architecture for real-time music-to-score alignment,'' \emph{IEEE Transactions on Pattern Analysis and Machine Intelligence}, vol.~32, no.~6, pp. 974--987, 2010.
@@ -60,28 +60,28 @@ J.~Park, C.~E. Cancino-Chac{\'o}n, S.~Chiruthapudi, and J.~Nam, ``Matchmaker: An
 A.~Arzt and G.~Widmer, ``Towards effective `any-time' music tracking,'' in \emph{Proceedings of the Fifth Starting AI Researchers' Symposium (STAIRS)}, ser. Frontiers in Artificial Intelligence and Applications, vol. 222.\hskip 1em plus 0.5em minus 0.4em\relax IOS Press, 2010, pp. 24--36.
 
 \bibitem{korzeniowski2013tracking}
-F.~Korzeniowski, F.~Krebs, A.~Arzt, and G.~Widmer, ``Tracking rests and tempo changes: Improved score following with particle filters,'' in \emph{ICMC}, 2013.
+F.~Korzeniowski, F.~Krebs, A.~Arzt, and G.~Widmer, ``Tracking rests and tempo changes: Improved score following with particle filters,'' in \emph{Proceedings of the 39th International Computer Music Conference (ICMC)}, 2013.
 
 \bibitem{jiang2020score}
 Y.~Jiang and C.~Raphael, ``Score following with hidden tempo using a switching state-space model,'' in \emph{Proceedings of the 21st International Society for Music Information Retrieval Conference (ISMIR)}, 2020, pp. 693--699.
 
 \bibitem{peter2025pairing}
-S.~Peter, P.~Hu, and G.~Widmer, ``Pairing real-time piano transcription with symbol-level tracking for precise and robust score following,'' in \emph{Proceedings of the Sound and Music Computing Conference (SMC)}, 2025.
+S.~Peter, P.~Hu, and G.~Widmer, ``Pairing real-time piano transcription with symbol-level tracking for precise and robust score following,'' in \emph{Proceedings of the 22nd Sound and Music Computing Conference (SMC)}, 2025, pp. 190--196.
 
 \bibitem{perez2018film}
-E.~Perez, F.~Strub, H.~de~Vries, V.~Dumoulin, and A.~Courville, ``{FiLM}: Visual reasoning with a general conditioning layer,'' in \emph{Proceedings of the AAAI Conference on Artificial Intelligence}, vol.~32, no.~1, 2018.
+E.~Perez, F.~Strub, H.~de~Vries, V.~Dumoulin, and A.~Courville, ``{FiLM}: Visual reasoning with a general conditioning layer,'' in \emph{Proceedings of the AAAI Conference on Artificial Intelligence}, vol.~32, no.~1, 2018, pp. 3942--3951.
 
 \bibitem{shan2020improved}
 M.~Shan and T.~J. Tsai, ``Improved handling of repeats and jumps in audio--sheet image synchronization,'' in \emph{Proceedings of the 21st International Society for Music Information Retrieval Conference (ISMIR)}, 2020, pp. 62--69.
 
 \bibitem{gu2024mamba}
-A.~Gu and T.~Dao, ``Mamba: Linear-time sequence modeling with selective state spaces,'' in \emph{Conference on Language Modeling (COLM)}, 2024.
+A.~Gu and T.~Dao, ``Mamba: Linear-time sequence modeling with selective state spaces,'' in \emph{Proceedings of the First Conference on Language Modeling (COLM)}, 2024.
 
 \bibitem{he2017mask}
-K.~He, G.~Gkioxari, P.~Doll{\'a}r, and R.~Girshick, ``Mask r-cnn,'' in \emph{Proceedings of the IEEE International Conference on Computer Vision}, 2017, pp. 2961--2969.
+K.~He, G.~Gkioxari, P.~Doll{\'a}r, and R.~Girshick, ``{Mask R-CNN},'' in \emph{Proceedings of the IEEE International Conference on Computer Vision}, 2017, pp. 2961--2969.
 
 \bibitem{vaswani2017attention}
-A.~Vaswani, N.~Shazeer, N.~Parmar, J.~Uszkoreit, L.~Jones, A.~N. Gomez, {\L}.~Kaiser, and I.~Polosukhin, ``Attention is all you need,'' in \emph{Advances in Neural Information Processing Systems}, vol.~30, 2017.
+A.~Vaswani, N.~Shazeer, N.~Parmar, J.~Uszkoreit, L.~Jones, A.~N. Gomez, {\L}.~Kaiser, and I.~Polosukhin, ``Attention is all you need,'' in \emph{Advances in Neural Information Processing Systems}, vol.~30, 2017, pp. 5998--6008.
 
 \bibitem{bengio2015scheduled}
 S.~Bengio, O.~Vinyals, N.~Jaitly, and N.~Shazeer, ``Scheduled sampling for sequence prediction with recurrent neural networks,'' in \emph{Advances in Neural Information Processing Systems}, vol.~28, 2015, pp. 1171--1179.
@@ -90,7 +90,7 @@ S.~Bengio, O.~Vinyals, N.~Jaitly, and N.~Shazeer, ``Scheduled sampling for seque
 A.~Kendall, Y.~Gal, and R.~Cipolla, ``Multi-task learning using uncertainty to weigh losses for scene geometry and semantics,'' in \emph{Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition}, 2018, pp. 7482--7491.
 
 \bibitem{dorfer2018learning}
-M.~Dorfer, J.~Haji{\v{c}}, jr., A.~Arzt, H.~Frostel, and G.~Widmer, ``Learning audio--sheet music correspondences for cross-modal retrieval and piece identification,'' \emph{Transactions of the International Society for Music Information Retrieval}, vol.~1, no.~1, pp. 22--33, 2018.
+M.~Dorfer, J.~Haji{\v{c}}, Jr., A.~Arzt, H.~Frostel, and G.~Widmer, ``Learning audio--sheet music correspondences for cross-modal retrieval and piece identification,'' \emph{Transactions of the International Society for Music Information Retrieval}, vol.~1, no.~1, pp. 22--33, 2018.
 
 \bibitem{henkel2021multi}
 F.~Henkel and G.~Widmer, ``Multi-modal conditional bounding box regression for music score following,'' in \emph{2021 29th European Signal Processing Conference (EUSIPCO)}.\hskip 1em plus 0.5em minus 0.4em\relax IEEE, 2021, pp. 356--360.
