@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex main"] 1784410661.51366 "main.aux" "main.bbl" "main" 1784410661.786 0
-  "./IEEEtran.bst" 1783978155.67285 57748 7c8250ecf02814ce6ddc0cdbb63df1dd ""
-  "./ISMIRtemplate.bib" 1783978155.67293 7789 dbabd3de11648d71be37602bb4a1fdfe ""
-  "main.aux" 1784410661.72889 9239 15a4b099c46684a846834bf51b27a359 "pdflatex"
+["bibtex ISMIR2026_CODApdf"] 1784410653.94225 "ISMIR2026_CODApdf.aux" "ISMIR2026_CODApdf.bbl" "ISMIR2026_CODApdf" 1784410654.20493 0
+  "./IEEEtran.bst" 1783978155.66599 57748 7c8250ecf02814ce6ddc0cdbb63df1dd ""
+  "./ISMIRtemplate.bib" 1783978155.67136 7789 dbabd3de11648d71be37602bb4a1fdfe ""
+  "ISMIR2026_CODApdf.aux" 1784410654.15712 9344 78001f9731eecd0980508399b52bf338 "pdflatex"
   (generated)
-  "main.bbl"
-  "main.blg"
+  "ISMIR2026_CODApdf.bbl"
+  "ISMIR2026_CODApdf.blg"
   (rewritten before read)
-["pdflatex"] 1784410661.52922 "main.tex" "main.pdf" "main" 1784410661.78607 0
+["pdflatex"] 1784410653.95437 "ISMIR2026_template.tex" "ISMIR2026_CODApdf.pdf" "ISMIR2026_CODApdf" 1784410654.20504 0
   "/Users/yyn/Library/TinyTeX/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/Users/yyn/Library/TinyTeX/texmf-dist/fonts/tfm/adobe/courier/pcrr8r.tfm" 1136768653 1292 bd42be2f344128bff6d35d98474adfe3 ""
   "/Users/yyn/Library/TinyTeX/texmf-dist/fonts/tfm/adobe/courier/pcrr8t.tfm" 1136768653 1384 4632f5e54900a7dadbb83f555bc61e56 ""
@@ -129,17 +129,17 @@
   "/Users/yyn/Library/TinyTeX/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1783995268 93259 9ce8c2321b6f0694833c32ebe2dc16a6 ""
   "/Users/yyn/Library/TinyTeX/texmf-var/web2c/pdftex/pdflatex.fmt" 1783916438 2251120 859b5a1aac1f83fc1d7ee3ec6ef37bed ""
   "/Users/yyn/Library/TinyTeX/texmf.cnf" 1783916407 637 edd806fb06a89761a6034e1968af9017 ""
-  "cc_by.pdf" 1783978155.67299 3422 af5b27ee6bca9c0f194a55f11008b85f ""
-  "cite.sty" 1783978155.67308 26218 19edeff8cdc2bcb704e8051dc55eb5a7 ""
-  "figures/CODA.jpg" 1783978155.67329 45248 f39c5ebd95a73854e76a9d66d372dd10 ""
-  "figures/jump_recovery.pdf" 1783978155.6736 139691 589258e1005ec3abf6601090665e1b01 ""
-  "figures/overview.pdf" 1783978155.67382 448379 afcd1879396b454b19b411a5e816dbf0 ""
-  "ismir.sty" 1783978155.67407 11169 5afa6087e890e0e75a09ae62731da99e ""
-  "main.aux" 1784410661.72889 9239 15a4b099c46684a846834bf51b27a359 "pdflatex"
-  "main.bbl" 1784410661.52516 7011 25bff1378d0e5b35b99660541f4700b8 "bibtex main"
-  "main.tex" 1784410646.81175 37147 bed31a184a377ce2313dd6c27394058a ""
+  "ISMIR2026_CODApdf.aux" 1784410654.15712 9344 78001f9731eecd0980508399b52bf338 "pdflatex"
+  "ISMIR2026_CODApdf.bbl" 1784410653.95301 7011 25bff1378d0e5b35b99660541f4700b8 "bibtex ISMIR2026_CODApdf"
+  "ISMIR2026_template.tex" 1784410646.81106 37481 eb57e3c6bc85cd4697da0954a9c84c9b ""
+  "cc_by.pdf" 1783978155.67695 3422 af5b27ee6bca9c0f194a55f11008b85f ""
+  "cite.sty" 1783978155.6771 26218 19edeff8cdc2bcb704e8051dc55eb5a7 ""
+  "figures/CODA.jpg" 1783978155.67765 45248 f39c5ebd95a73854e76a9d66d372dd10 ""
+  "figures/jump_recovery.pdf" 1783978155.67795 139691 589258e1005ec3abf6601090665e1b01 ""
+  "figures/overview.pdf" 1783978155.67822 448379 afcd1879396b454b19b411a5e816dbf0 ""
+  "ismir.sty" 1783978155.67845 11169 5afa6087e890e0e75a09ae62731da99e ""
   (generated)
-  "main.aux"
-  "main.log"
-  "main.pdf"
+  "ISMIR2026_CODApdf.aux"
+  "ISMIR2026_CODApdf.log"
+  "ISMIR2026_CODApdf.pdf"
   (rewritten before read)

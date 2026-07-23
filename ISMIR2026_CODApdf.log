@@ -2,8 +2,8 @@ This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded forma
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**main.tex
-(./main.tex
+**ISMIR2026_template.tex
+(./ISMIR2026_template.tex
 LaTeX2e <2026-06-01>
 L3 programming layer <2026-06-18>
 (/Users/yyn/Library/TinyTeX/texmf-dist/tex/latex/base/article.cls
@@ -330,8 +330,8 @@ File: t1ptm.fd 2001/06/04 font definitions for T1/ptm.
 ) (/Users/yyn/Library/TinyTeX/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def
 File: l3backend-pdftex.def 2026-02-18 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count314
-) (./main.aux)
-\openout1 = `main.aux'.
+) (./ISMIR2026_CODApdf.aux)
+\openout1 = `ISMIR2026_CODApdf.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 41.
 LaTeX Font Info:    ... okay on input line 41.
@@ -466,7 +466,11 @@ Package fancyhdr Warning: \headheight is too small (0.0pt):
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-(./main.bbl
+
+Underfull \hbox (badness 1178) in paragraph at lines 331--332
+\T1/ptm/m/n/10 and Al-berta In-no-vates (project num-ber RES0053965).
+ []
+
 
 Package fancyhdr Warning: \headheight is too small (0.0pt): 
 (fancyhdr)                Make it at least 12.0pt, for example:
@@ -474,7 +478,7 @@ Package fancyhdr Warning: \headheight is too small (0.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-12.0pt}.
 
-[6]
+[6] (./ISMIR2026_CODApdf.bbl
 
 Package fancyhdr Warning: \headheight is too small (0.0pt): 
 (fancyhdr)                Make it at least 12.0pt, for example:
@@ -492,22 +496,22 @@ Package fancyhdr Warning: \headheight is too small (0.0pt):
 
 [8
 
-] (./main.aux)
+] (./ISMIR2026_CODApdf.aux)
  ***********
 LaTeX2e <2026-06-01>
 L3 programming layer <2026-06-18>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 12110 strings out of 469158
- 188715 string characters out of 5459505
- 642611 words of memory out of 5000000
+ 12111 strings out of 469158
+ 188956 string characters out of 5459505
+ 642624 words of memory out of 5000000
  40946 multiletter control sequences out of 15000+600000
  680726 words of font info for 115 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 74i,17n,83p,1531b,565s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 74i,17n,83p,1545b,559s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></Users/yyn/Library/TinyTeX/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on main.pdf (8 pages, 866079 bytes).
+Output written on ISMIR2026_CODApdf.pdf (8 pages, 866495 bytes).
 PDF statistics:
  207 PDF objects out of 1000 (max. 8388607)
  136 compressed objects within 2 object streams
