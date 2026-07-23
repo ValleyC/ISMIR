@@ -1,0 +1,58 @@
+% -----------------------------------------------
+% ISMIR 2026 camera-ready version
+% -----------------------------------------------
+
+\documentclass{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{ismir}
+
+\usepackage{amsmath,amssymb,cite,url}
+\usepackage[hidelinks,implicit=false,bookmarks=false]{hyperref}
+\usepackage{graphicx}
+\usepackage[table]{xcolor}
+\usepackage{booktabs,multirow}
+
+\definecolor{rowhl}{HTML}{E8F0FE}    % light blue for "ours" rows
+\definecolor{sechl}{HTML}{F0F0F0}    % subtle gray for section headers
+\definecolor{best}{HTML}{B30000}      % strong crimson for best result
+\definecolor{second}{HTML}{0B3D91}   % deep navy for second best
+\newcommand{\first}[1]{\textcolor{best}{\textbf{#1}}}
+\newcommand{\second}[1]{\textcolor{second}{\underline{#1}}}
+
+\usepackage{caption}
+\captionsetup{font=small}
+
+\title{CODA: \underline{C}ascaded \underline{O}nline \underline{D}iscontinuity-Aware
+\underline{A}lignment for Real-Time Image-Based Score Following}
+
+\multauthor
+  {Yining Yang$^{1*}$ \hspace{0.5cm} Ruogu Chen$^{2*}$ \hspace{0.5cm} Jie Han$^2$}
+  {$^1$ Don Wright Faculty of Music, Western University, Canada\\
+   $^2$ Department of Electrical and Computer Engineering, University of Alberta, Canada\\
+   {\tt\small yyang524@uwo.ca, ruogu@ualberta.ca, jhan8@ualberta.ca}\\[2pt]
+   \small $^*$Equal contribution}
+
+
+\def\authorname{Yining Yang, Ruogu Chen, and Jie Han}
+
+\sloppy
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Real-time score following from sheet images remains challenging because the model must process streaming audio while resolving highly repetitive visual patterns under strict latency constraints. Recent image-based methods have attempted to use multi-resolution prediction by simultaneously predicting the positions of the active system, bar, and note. However, their predictions across these different levels of notation are independent, which makes the predictions unstable and introduces unnecessary extra search space for bar- and note-level predictions. Most existing methods also lack mechanisms to recover from score discontinuities, such as repeats, da capo (D.C.), or coda jumps. This paper proposes CODA, to the best of our knowledge, the first real-time score following system that addresses both gaps. CODA explicitly exploits the cascaded structure of music scores: it first selects the active system, then the active bar within it, and finally the active note within the selected bar. This enforces prediction consistency across resolutions. A silence-driven break mode enables recovery from arbitrary score discontinuities without requiring knowledge of the repeat structure. Evaluated on the Multimodal Sheet Music Dataset (MSMD) piano benchmarks, CODA achieves state-of-the-art tracking accuracy and discontinuity-recovery performance under real-time throughput. Code is available at \url{https://github.com/ValleyC/CODA}.
+\end{abstract}
+
+\input{sections/introduction}%
+\input{sections/related_work}%
+\input{sections/method}%
+\input{sections/experiments_and_results}%
+\input{sections/conclusion}%
+\input{sections/acknowledgments}%
+
+\bibliography{references}
+
+\end{document}

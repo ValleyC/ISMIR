@@ -1,0 +1,159 @@
+\section{Experiments and Results}\label{sec:eval}
+
+\subsection{Experimental Setup}\label{sec:setup}
+ 
+\subsubsection{Dataset.}
+Training and evaluation are both based on the MSMD dataset~\cite{dorfer2018learning}, using the preprocessed version provided by Henkel and Widmer~\cite{henkel2021real}, in which each piece is stored as a score image with per-note coordinate annotations and per-system and per-bar bounding box annotations, paired with a synthesized audio file (22,050~Hz). The standard split contains 354 training, 19 validation, and 94 test pieces.
+ 
+\subsubsection{Evaluation protocol.}
+We consider two evaluation settings matching~\cite{henkel2021real}: 
+Setting~I uses the full 94-piece test split with synthetic score images 
+and synthetic audio; Setting~II pairs the same synthetic images with real 
+piano recordings for a 16-piece subset~\cite{henkel2019score}, testing 
+generalization to real audio. Settings~III and~IV of~\cite{henkel2021real}, 
+which require commercially published scanned scores, are not publicly 
+available and are therefore not included.
+
+Following~\cite{henkel2021real}, we evaluate at each ground-truth note onset.
+Because image-based trackers predict positions in pixel space, we first convert each predicted position to the time domain by interpolating through the ground-truth onset-to-pixel mapping, then compute the absolute time difference between the predicted and true onset. We report the cumulative ratio of onsets tracked below five error thresholds: $\leq$\,0.05, 0.10, 0.50, 1.00, and 5.00~seconds. Higher ratios indicate better tracking. For methods that produce multi-resolution outputs, we additionally report \emph{system accuracy} and \emph{bar accuracy}, defined as the fraction of evaluated frames in which the predicted system or bar matches the ground-truth.
+ 
+\subsubsection{Baselines.}
+We compare against the image-based score following methods evaluated
+in~\cite{henkel2021real}: \textbf{MM-Loc}~\cite{dorfer2016towards}, a
+supervised multimodal localization model; \textbf{RL}~\cite{henkel2019score},
+a reinforcement-learning agent; \textbf{CUNet}~\cite{henkel2020learning}, a
+conditional U-Net for full-page segmentation; \textbf{CYOLO}~\cite{henkel2021multi}, the conditional
+YOLO detector predicting note-level bounding boxes; and \textbf{CYOLO-SB}~\cite{henkel2021real}, the multi-resolution variant that adds system and bar heads. All baseline numbers are taken directly from~\cite{henkel2021real} under the same evaluation protocol. We also list \textbf{CYOLO-SB\,+\,A} for reference, noting that this variant uses additional proprietary training data (scanned scores and commercial recordings) that are not available to other methods. Methods that rely on automatic music transcription as a front end, such as Peter et al.~\cite{peter2025pairing}, are not directly comparable because they depend on symbolic-level intermediate representations rather than operating on sheet images.
+ 
+\subsubsection{Implementation details.}
+Audio is processed at 22,050~Hz with a 2048-sample short-time Fourier transform (STFT) (hop size 1\,102,
+${\approx}\,$20~frames per second) and a 78-bin log-filterbank spanning
+60\,Hz--6\,kHz. Score pages are converted to grayscale and scaled to a fixed
+width of 416 pixels. The Mamba audio encoder has two layers with hidden
+dimension~64, state dimension~16, convolution width~4, expansion factor~2, and projects to a 128-dimensional conditioning vector~$z_t$. Both the system and bar selection heads use cross-attention with four heads over an audio buffer of 64 frames. The beam search retains $k{=}3$ system and $m{=}3$ bar candidates per frame. Break mode uses an energy onset threshold of~0.1, release threshold of~0.25, a silence onset of 3~frames (${\approx}\,$150\,ms), and a grace window of 8~frames (${\approx}\,$400\,ms). During break, priors are multiplied by zero and the beam covers all systems, with $m{=}3$ bars per system.
+ 
+Training follows the two-phase curriculum described in
+Section~\ref{sec:method}. Phase~1 trains for 30~epochs with a learning rate of
+$5{\times}10^{-4}$ under ground-truth system routing. Phase~2 fine-tunes for
+20~epochs at $1{\times}10^{-4}$ with scheduled sampling, where the probability of using the model's own system prediction ramps linearly to $p_{\max}{=}0.7$ over the first 5~epochs. Both phases use the AdamW optimizer with a batch size of~16, cosine learning-rate decay, and gradient clipping at
+norm~1.0. Data augmentation includes jump augmentation (Section~\ref{subsec:jump}), spatial shifts, tempo scaling, and cold-start truncation. Following~\cite{henkel2021real}, impulse response (IR) augmentation is also applied during training, convolving the audio with a randomly selected room impulse response on-the-fly to model varying microphone and room conditions. Jump augmentation samples destinations from a weighted mixture of six categories: \emph{repeat} (40\%), \emph{bar correction} (15\%), \emph{skip} (15\%), \emph{restart} (10\%), \emph{page jump} (10\%), and \emph{random} (10\%).
+ 
+CODA has 2.0M trainable parameters. All training and experiments are conducted on a single NVIDIA RTX A6000 GPU (48\,GB) with an Intel Xeon Gold 5218R CPU and 64\,GB RAM. At inference, CODA processes each audio frame in 12.8\,ms (78.1\,fps), within the 50\,ms real-time budget at 20\,fps.
+
+\subsection{Standard Tracking Results}\label{sec:tracking}
+ 
+Table~\ref{tab:main} compares CODA to the baselines on the two evaluation
+settings described in Section~\ref{sec:setup}. In Setting~I, CODA achieves .914 at ${\leq}\,0.10$\,s compared to .837 for CYOLO-SB, with bar accuracy improving from .890 to .975 and system accuracy from .963 to .991. In Setting~II, CODA achieves .743 at ${\leq}\,0.10$\,s versus .630 for CYOLO-SB.
+
+\begin{table}[h]
+\centering
+\caption{Score-following comparison. Each cell is the ratio of onsets tracked below the error threshold (higher is better); best in \first{red bold}, second best in \second{blue underline}. $^\dagger$Proprietary training data; baseline numbers from~\cite{henkel2021real}.}
+\label{tab:main}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}l ccccc cc@{}}
+\toprule
+& \multicolumn{5}{c}{Onset error threshold (s)} & \multicolumn{2}{c}{Frame accuracy} \\
+\cmidrule(lr){2-6} \cmidrule(l){7-8}
+Method & ${\leq}$.05 & ${\leq}$.10 & ${\leq}$.50 & ${\leq}$1.0 & ${\leq}$5.0 & Bar & Sys \\
+\midrule
+\rowcolor{sechl}
+\multicolumn{8}{@{}l}{\textit{Setting I\!: Synthetic images -- Synthetic audio}} \\
+MM-Loc~\cite{dorfer2016towards}       & .707 & .747 & .839 & .855 & .917 & --   & --   \\
+RL~\cite{henkel2019score}             & .411 & .435 & .776 & .856 & .971 & --   & --   \\
+CUNet~\cite{henkel2020learning}       & .726 & .750 & .855 & .885 & .937 & --   & --   \\
+CYOLO~\cite{henkel2021multi}          & .830 & .842 & .885 & .909 & \second{.984} & --   & --   \\
+CYOLO-SB~\cite{henkel2021real}        & .820 & .837 & .893 & .912 & .983 & .890 & \second{.963} \\
+CYOLO-SB+A$^\dagger$~\cite{henkel2021real} & \second{.846} & \second{.861} & \second{.908} & \second{.927} & \second{.984} & \second{.892} & .956 \\
+\rowcolor{rowhl}
+CODA (ours)  & \first{.897} & \first{.914} & \first{.955} & \first{.981} & \first{.996} & \first{.975} & \first{.991} \\
+\midrule
+\rowcolor{sechl}
+\multicolumn{8}{@{}l}{\textit{Setting II\!: Synthetic images -- Real audio recordings}} \\
+MM-Loc~\cite{dorfer2016towards}       & .364 & .406 & .585 & .611 & .735 & --   & --   \\
+RL~\cite{henkel2019score}             & .185 & .200 & .476 & .603 & .901 & --   & --   \\
+CUNet~\cite{henkel2020learning}       & .113 & .125 & .224 & .266 & .443 & --   & --   \\
+CYOLO~\cite{henkel2021multi}          & .563 & .581 & .712 & .749 & .919 & --   & --   \\
+CYOLO-SB~\cite{henkel2021real}        & .610 & .630 & .799 & .832 & .960 & .829 & .917 \\
+CYOLO-SB+A$^\dagger$~\cite{henkel2021real} & \second{.682} & \second{.706} & \second{.865} & \second{.891} & \second{.981} & \second{.865} & \second{.941} \\
+\rowcolor{rowhl}
+CODA (ours)  & \first{.721} & \first{.743} & \first{.883} & \first{.914} & \first{.987} & \first{.891} & \first{.953} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{-0.7cm}
+
+\subsection{Jump Recovery Evaluation}\label{sec:jump}
+ 
+To fairly evaluate jump recovery, we construct a jump test benchmark from the 94 MSMD test pieces. We manually annotated the repeat structure of each piece (repeat barlines, da capo, volta brackets, binary form, etc.). Of the 94 pieces, 66 contain written repeat structures and 28 do not. The benchmark is partitioned into two subsets accordingly. The \emph{repeat subset} comprises the 66 pieces with repeats, producing 131 jumps that follow the annotated performance order. The \emph{random subset} comprises the remaining 28 pieces without repeats, each receiving 3 randomly placed jumps (84 jumps in total) as a stress test.
+ 
+We report three metrics on post-jump segments: \emph{system recovery rate}
+(fraction of jumps where the correct system is identified within 1.0 and
+2.0\,s), \emph{mean recovery latency} (time in seconds from audio resumption to the first correct system
+prediction), and \emph{post-jump tracking accuracy} (${\leq}\,1.0$\,s threshold
+in the 5\,s window after each jump).
+ 
+\begin{table}[h]
+\centering
+\caption{Jump recovery results on the repeat-aware MSMD test set.
+\textbf{Rec.@$k$\,s}: fraction of jumps with correct system within $k$\,s.
+\textbf{Lat.}: mean seconds to first correct system prediction.
+\textbf{Post-J.}: fraction of onsets tracked within ${\leq}\,1.0$\,s in the 5\,s window after each jump.}
+\label{tab:jump}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}ll cc c c@{}}
+\toprule
+& & \multicolumn{2}{c}{Sys recovery} & & Post-jump \\
+\cmidrule(lr){3-4}
+Subset & Method & @1\,s & @2\,s & Lat.\,(s) & ${\leq}$1\,s \\
+\midrule
+\multirow{3}{*}{Repeat}
+ & CYOLO-SB       & .12   & .20   & 4.31   & .35 \\
+ & CODA w/o break & \second{.29}   & \second{.44}   & \second{2.63}   & \second{.54} \\
+\rowcolor{rowhl}
+ & CODA (full)    & \first{.78} & \first{.91} & \first{0.72} & \first{.82} \\
+\midrule
+\multirow{3}{*}{Random}
+ & CYOLO-SB       & .08   & .15   & 5.18   & .27 \\
+ & CODA w/o break & \second{.23}   & \second{.38}   & \second{3.07}   & \second{.46} \\
+\rowcolor{rowhl}
+ & CODA (full)    & \first{.64} & \first{.80} & \first{1.24} & \first{.71} \\
+\bottomrule
+\end{tabular}
+\end{table}
+ 
+Table~\ref{tab:jump} shows the results. Without a jump-handling mechanism, CYOLO-SB yields low recovery rates across both subsets. CODA without break mode also struggles because learned transition penalties resist large position changes. On the repeat subset, CODA recovers the correct system within 1\,s in 78\% of jumps. Recovery is higher on the repeat subset than the random subset (.78 vs.\ .64 at 1\,s).
+
+\subsection{Ablation Study}\label{sec:ablation}
+
+To isolate the contribution of each component, we evaluate five ablated variants of CODA on Setting~I (synthetic images and audio). Each variant removes or disables a single component while keeping all others unchanged.
+
+Table~\ref{tab:ablation} shows the results. The largest degradation comes from removing the cascade ($-.045$ at ${\leq}\,0.10$\,s, bar accuracy drops from .975 to .931). Beam search, cross-attention, and temporal priors contribute the next-largest gains ($-.026$, $-.019$, and $-.014$ at ${\leq}\,0.10$\,s, respectively). Scheduled sampling has the smallest individual effect, but consistently improves all thresholds.
+
+\begin{table}[h]
+\centering
+\caption{Ablation study on the MSMD synthetic test set (Setting~I). Each row
+removes one component from the full model.}
+\label{tab:ablation}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}l cccc cc@{}}
+\toprule
+& \multicolumn{4}{c}{Onset error threshold (s)} & \multicolumn{2}{c}{Frame accuracy} \\
+\cmidrule(lr){2-5} \cmidrule(l){6-7}
+Variant & ${\leq}$.05 & ${\leq}$.10 & ${\leq}$.50 & ${\leq}$1.0 & Bar & Sys \\
+\midrule
+\rowcolor{rowhl}
+CODA (full)            & \first{.897} & \first{.914} & \first{.955} & \first{.981} & \first{.975} & \first{.991} \\
+\midrule
+w/o cascade            & .851 & .869 & .923 & .952 & .931 & .967 \\
+w/o cross-attention    & .878 & .895 & .943 & .972 & .958 & .985 \\
+w/o beam search        & .870 & .888 & .938 & .968 & .949 & .982 \\
+w/o temporal priors    & .882 & .900 & .948 & .975 & .963 & .988 \\
+w/o sched.\ sampling   & \second{.888} & \second{.906} & \second{.951} & \second{.978} & \second{.968} & \second{.989} \\
+\bottomrule
+\end{tabular}
+\end{table}
+

@@ -1,0 +1,23 @@
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+
+# Generated submission archives
+*.zip
+
+# Temporary render and comparison files
+tmp/
+
+# Local/editor metadata
+.DS_Store
+Thumbs.db
+
